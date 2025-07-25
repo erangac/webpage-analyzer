@@ -6,6 +6,7 @@ WORKDIR /app
 COPY go.mod ./
 RUN go mod download
 COPY . .
+RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -o /backend ./cmd/webpage-analyzer
 
 # --- Final image ---

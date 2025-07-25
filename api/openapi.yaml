@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Webpage Analyzer API
-  description: API for analyzing webpages and extracting metadata
+  description: API for analyzing webpages and extracting specific metadata including HTML version, page title, headings, links, and login forms
   version: 1.0.0
   contact:
     name: Webpage Analyzer Team
@@ -39,7 +39,7 @@ paths:
   /api/analyze:
     post:
       summary: Analyze webpage
-      description: Analyze a webpage and return detailed information
+      description: Analyze a webpage and return specific information including HTML version, page title, headings, links, and login form detection
       tags:
         - Analysis
       requestBody:
@@ -64,15 +64,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/WebpageAnalysis'
         '400':
-          description: Invalid request (missing or invalid URL)
+          description: Invalid request or webpage not reachable
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "URL is required"
+                $ref: '#/components/schemas/AnalysisError'
         '500':
           description: Internal server error
           content:
@@ -115,49 +111,39 @@ components:
           format: uri
           description: URL that was analyzed
           example: "https://example.com"
-        title:
+        html_version:
           type: string
-          description: Page title
+          description: HTML version of the document
+          example: "HTML5 (implied)"
+        page_title:
+          type: string
+          description: Page title from the title tag
           example: "Example Domain"
-        description:
-          type: string
-          description: Page description
-          example: "This is a placeholder analysis. Full implementation coming soon!"
-        keywords:
-          type: array
-          items:
-            type: string
-          description: Keywords found on the page
-          example: ["placeholder", "analysis", "webpage"]
-        meta_tags:
+        headings:
           type: object
+          description: Count of headings by level (h1, h2, h3, etc.)
           additionalProperties:
-            type: string
-          description: Meta tags found on the page
+            type: integer
           example:
-            viewport: "width=device-width, initial-scale=1"
-            robots: "index, follow"
-        status_code:
+            h1: 1
+            h2: 3
+            h3: 5
+        internal_links:
           type: integer
-          description: HTTP status code of the page
-          example: 200
-        response_time:
-          type: string
-          format: duration
-          description: Time taken to fetch the page
-          example: "100ms"
-        word_count:
+          description: Number of internal links (relative URLs)
+          example: 15
+        external_links:
           type: integer
-          description: Number of words on the page
-          example: 150
-        image_count:
+          description: Number of external links (absolute URLs)
+          example: 8
+        inaccessible_links:
           type: integer
-          description: Number of images on the page
-          example: 5
-        link_count:
-          type: integer
-          description: Number of links on the page
-          example: 12
+          description: Number of inaccessible links
+          example: 0
+        has_login_form:
+          type: boolean
+          description: Whether the page contains a login form
+          example: false
         analyzed_at:
           type: string
           format: date-time
@@ -165,10 +151,36 @@ components:
           example: "2024-01-15T10:30:00Z"
       required:
         - url
-        - title
-        - description
-        - status_code
+        - html_version
+        - page_title
+        - headings
+        - internal_links
+        - external_links
+        - inaccessible_links
+        - has_login_form
         - analyzed_at
+
+    AnalysisError:
+      type: object
+      description: Error response when webpage analysis fails
+      properties:
+        status_code:
+          type: integer
+          description: HTTP status code of the failed request
+          example: 404
+        error_message:
+          type: string
+          description: Detailed error message
+          example: "HTTP 404: Not Found"
+        url:
+          type: string
+          format: uri
+          description: URL that failed to analyze
+          example: "https://nonexistent.example.com"
+      required:
+        - status_code
+        - error_message
+        - url
 
 tags:
   - name: Analysis

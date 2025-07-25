@@ -9,7 +9,13 @@ This folder contains API definitions, contracts, and documentation for the Webpa
 
 ## API Overview
 
-The Webpage Analyzer API provides endpoints for analyzing webpages and extracting metadata.
+The Webpage Analyzer API provides endpoints for analyzing webpages and extracting specific metadata including:
+
+- **HTML Version**: What HTML version the document uses
+- **Page Title**: The title of the webpage
+- **Headings**: Count of headings by level (h1, h2, h3, etc.)
+- **Links**: Internal and external link counts
+- **Login Forms**: Detection of login forms on the page
 
 ### Base URLs
 - **Development**: `http://localhost:8990`
@@ -42,10 +48,59 @@ curl -X POST http://localhost:8990/api/analyze \
   -d '{"url": "https://example.com"}'
 ```
 
+**Response Example:**
+```json
+{
+  "url": "https://example.com",
+  "html_version": "HTML5 (implied)",
+  "page_title": "Example Domain",
+  "headings": {
+    "h1": 1,
+    "h2": 3
+  },
+  "internal_links": 5,
+  "external_links": 2,
+  "inaccessible_links": 0,
+  "has_login_form": false,
+  "analyzed_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### Error Response Example
+If the URL is not reachable:
+```json
+{
+  "status_code": 404,
+  "error_message": "HTTP 404: Not Found",
+  "url": "https://nonexistent.example.com"
+}
+```
+
 ### Get Service Status
 ```bash
 curl http://localhost:8990/api/status
 ```
+
+## Analysis Features
+
+### What the Analyzer Extracts:
+
+1. **HTML Version**: Detects DOCTYPE or assumes HTML5
+2. **Page Title**: Extracts content from `<title>` tag
+3. **Headings**: Counts h1, h2, h3, h4, h5, h6 elements
+4. **Links**: 
+   - Internal links (relative URLs starting with `/` or `#`)
+   - External links (absolute URLs starting with `http`)
+   - Inaccessible links (currently set to 0, can be enhanced)
+5. **Login Forms**: Detects forms containing login-related keywords
+
+### Error Handling
+
+The API provides detailed error messages when:
+- URL is not reachable (with HTTP status code)
+- Network errors occur
+- HTML parsing fails
+- Invalid URLs are provided
 
 ## Interactive API Documentation
 
@@ -80,7 +135,11 @@ This API follows semantic versioning. The current version is `1.0.0`.
 
 ## Future Enhancements
 
-- API versioning (v1, v2, etc.)
+- Enhanced link accessibility checking
+- More sophisticated login form detection
+- Meta tag analysis
+- Image analysis
+- Performance metrics
 - Authentication and authorization
 - Rate limiting
 - Webhook support

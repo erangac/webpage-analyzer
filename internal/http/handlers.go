@@ -52,6 +52,15 @@ func (h *Handler) AnalyzeWebpage(w http.ResponseWriter, r *http.Request) {
 
 	analysis, err := h.analyzerService.AnalyzeWebpage(r.Context(), req)
 	if err != nil {
+		// Check if it's an AnalysisError
+		if analysisErr, ok := err.(*analyzer.AnalysisError); ok {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(analysisErr)
+			return
+		}
+		
+		// Generic error
 		http.Error(w, "Failed to analyze webpage", http.StatusInternalServerError)
 		return
 	}
