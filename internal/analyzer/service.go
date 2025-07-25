@@ -136,7 +136,7 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 	}
 
 	// Calculate processing time.
-	analysis.ProcessingTime = time.Since(startTime)
+	analysis.ProcessingTime = time.Since(startTime).String()
 
 	return analysis, nil
 }

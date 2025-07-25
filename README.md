@@ -9,7 +9,7 @@ A modern Go project for analyzing web pages with comprehensive metadata extracti
 - **Robust Error Handling**: Detailed error messages for various failure scenarios
 - **Simple Frontend**: Static HTML/CSS/JS interface served by the Go backend
 - **Docker Support**: Easy deployment with containerization
-- **OpenAPI Documentation**: Complete API specification with interactive documentation
+- **Dynamic OpenAPI Documentation**: Auto-generated API specification using Swaggo with interactive documentation
 
 ## 📁 Project Structure
 
@@ -28,8 +28,7 @@ webpage-analyzer/
 │       └── handlers.go        # API endpoint handlers
 ├── frontend/
 │   └── public/                # Static HTML, CSS, JS files (no build step)
-├── api/                       # API specifications and documentation
-│   └── openapi.yaml          # OpenAPI 3.0 specification
+├── api/                       # Generated API documentation (Swaggo output at runtime)
 ├── scripts/                   # Helper scripts
 │   └── lint.sh               # Code quality checks
 ├── Dockerfile                 # Multi-stage build for backend and static frontend
@@ -218,8 +217,8 @@ This will open the interactive Swagger UI documentation where you can:
 
 You can also view the API documentation using external tools:
 
-1. **Using Swagger UI**: Upload `api/openapi.yaml` to [Swagger Editor](https://editor.swagger.io/)
-2. **Using Redoc**: Upload `api/openapi.yaml` to [Redoc](https://redocly.github.io/redoc/)
+1. **Using Swagger UI**: Upload `api/swagger.yaml` to [Swagger Editor](https://editor.swagger.io/)
+2. **Using Redoc**: Upload `api/swagger.yaml` to [Redoc](https://redocly.github.io/redoc/)
 3. **Local Development**: Use tools like `swagger-ui` or `redoc` to serve the documentation locally
 
 ## 🎨 Frontend
@@ -243,7 +242,24 @@ go build -o webpage-analyzer cmd/webpage-analyzer/main.go
 go test ./...
 ```
 
-## 📋 Code Generation
+## 📋 Dynamic OpenAPI Generation
+
+The project uses **Swaggo** to automatically generate the OpenAPI specification from Go code annotations:
+
+### How it works:
+- **Code Annotations**: Swaggo reads special comments in Go code to generate documentation
+- **Build-time Generation**: The OpenAPI spec is generated during Docker build
+- **Always Up-to-date**: Documentation automatically stays in sync with code changes
+
+### Generated Files:
+- `api/swagger.yaml` - OpenAPI specification in YAML format
+- `api/swagger.json` - OpenAPI specification in JSON format  
+- `api/docs.go` - Go code with embedded documentation
+
+### Benefits:
+- **No Manual Maintenance**: Documentation updates automatically with code changes
+- **Type Safety**: Generated spec matches actual Go structs and interfaces
+- **Consistency**: API documentation is always synchronized with implementation
 
 The OpenAPI specification can be used to generate:
 - Client SDKs (JavaScript, Python, Go, etc.)

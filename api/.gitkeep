@@ -1,0 +1,3 @@
+# This folder is required for the application to serve the OpenAPI specification.
+# During Docker build, Swaggo generates swagger.yaml, swagger.json, and docs.go files here.
+# The application serves these files at runtime via the /api/openapi endpoint.

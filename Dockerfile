@@ -4,8 +4,9 @@
 FROM golang:1.22-alpine AS backend-builder
 WORKDIR /app
 
-# Install basic tools
+# Install basic tools and Swaggo
 RUN apk add --no-cache git curl bash
+RUN go install github.com/swaggo/swag/cmd/swag@latest
 
 # Copy go.mod and go.sum first for better caching
 COPY go.mod ./
@@ -13,6 +14,9 @@ RUN go mod download
 
 # Copy source code
 COPY . .
+
+# Generate OpenAPI specification using Swaggo
+RUN swag init -g cmd/webpage-analyzer/main.go -o api
 
 # Ensure dependencies are properly resolved
 RUN go mod tidy
@@ -28,7 +32,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /backend ./cmd/webpage-analyzer
 FROM alpine:3.19
 WORKDIR /app
 COPY --from=backend-builder /backend ./backend
+COPY --from=backend-builder /app/api ./api
 COPY frontend/public ./frontend/public
-COPY api ./api
 EXPOSE 8990
 CMD ["./backend", "-port=8990"] 
