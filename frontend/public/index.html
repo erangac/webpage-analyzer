@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webpage Analyzer</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+        form { margin-bottom: 2rem; }
+        input[type="text"] { width: 80%; padding: 0.5rem; }
+        button { padding: 0.5rem 1rem; }
+        #results { background: #f9f9f9; padding: 1rem; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Webpage Analyzer</h1>
+    <form id="analyze-form">
+        <input type="text" id="url" placeholder="Enter webpage URL" required />
+        <button type="submit">Analyze</button>
+    </form>
+    <div id="results"></div>
+    <script>
+        document.getElementById('analyze-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const url = document.getElementById('url').value;
+            document.getElementById('results').textContent = 'Analyzing...';
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('results').textContent = 'Error: ' + err;
+            }
+        });
+    </script>
+</body>
+</html> 
