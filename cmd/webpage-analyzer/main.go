@@ -10,18 +10,13 @@ import (
 	httphandler "webpage-analyzer/internal/http"
 )
 
-func main() {
-	port := flag.String("port", "8080", "Port to run the server on")
-	flag.Parse()
+const (
+	staticDir = "frontend/public"
+)
 
-	// Initialize services.
-	analyzerService := analyzer.NewService()
-
-	// Initialize handlers.
-	handler := httphandler.NewHandler(analyzerService)
-
+func registerRoutes(handler *httphandler.Handler) {
 	// Serve static files from frontend/public.
-	fs := http.FileServer(http.Dir("frontend/public"))
+	fs := http.FileServer(http.Dir(staticDir))
 	http.Handle("/", fs)
 
 	// API routes.
@@ -32,16 +27,41 @@ func main() {
 	// API Documentation routes.
 	http.HandleFunc("/api/openapi", handler.ServeOpenAPI)
 	http.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "frontend/public/docs.html")
+		http.ServeFile(w, r, staticDir+"/docs.html")
 	})
+}
+
+func main() {
+	port := flag.String("port", "8080", "Port to run the server on")
+	flag.Parse()
+
+	// Initialize services.
+	analyzerService := analyzer.NewService()
+
+	// Initialize handlers.
+	handler := httphandler.NewHandler(analyzerService)
+
+	// Register all routes.
+	registerRoutes(handler)
 
 	log.Printf("Starting webpage analyzer server on port %s", *port)
-	log.Printf("Frontend available at: http://localhost:%s", *port)
-	log.Printf("API Documentation available at: http://localhost:%s/docs", *port)
-	log.Printf("Health check available at: http://localhost:%s/api/health", *port)
-	log.Printf("Analysis endpoint available at: http://localhost:%s/api/analyze", *port)
-	log.Printf("Status endpoint available at: http://localhost:%s/api/status", *port)
-	log.Printf("OpenAPI spec available at: http://localhost:%s/api/openapi", *port)
+	
+	// Log available endpoints
+	endpoints := []struct {
+		name string
+		path string
+	}{
+		{"Frontend", "/"},
+		{"API Documentation", "/docs"},
+		{"Health check", "/api/health"},
+		{"Analysis endpoint", "/api/analyze"},
+		{"Status endpoint", "/api/status"},
+		{"OpenAPI spec", "/api/openapi"},
+	}
+
+	for _, endpoint := range endpoints {
+		log.Printf("%s available at: http://localhost:%s%s", endpoint.name, *port, endpoint.path)
+	}
 
 	// Create server with timeout configuration.
 	server := &http.Server{

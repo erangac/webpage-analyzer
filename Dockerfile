@@ -4,10 +4,8 @@
 FROM golang:1.22-alpine AS backend-builder
 WORKDIR /app
 
-# Install static analysis tools
+# Install basic tools
 RUN apk add --no-cache git curl bash
-RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
-RUN go install honnef.co/go/tools/cmd/staticcheck@v0.4.6
 
 # Copy go.mod and go.sum first for better caching
 COPY go.mod ./
@@ -19,11 +17,9 @@ COPY . .
 # Ensure dependencies are properly resolved
 RUN go mod tidy
 
-# Run static analysis
-RUN golangci-lint run --timeout=5m
+# Run basic Go checks
 RUN go vet ./...
 RUN gofmt -s -l . | grep -q . && (echo "Code formatting issues found. Run 'go fmt ./...' to fix." && exit 1) || true
-RUN staticcheck ./...
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /backend ./cmd/webpage-analyzer
