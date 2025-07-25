@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: Webpage Analyzer API
+  description: API for analyzing webpages and extracting metadata
+  version: 1.0.0
+  contact:
+    name: Webpage Analyzer Team
+servers:
+  - url: http://localhost:8990
+    description: Development server
+  - url: https://api.webpage-analyzer.com
+    description: Production server
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      description: Check if the service is running
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  service:
+                    type: string
+                    example: "webpage-analyzer"
+                required:
+                  - status
+                  - service
+
+  /api/analyze:
+    post:
+      summary: Analyze webpage
+      description: Analyze a webpage and return detailed information
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: URL of the webpage to analyze
+                  example: "https://example.com"
+              required:
+                - url
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebpageAnalysis'
+        '400':
+          description: Invalid request (missing or invalid URL)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "URL is required"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Failed to analyze webpage"
+
+  /api/status:
+    get:
+      summary: Get service status
+      description: Get the current status and capabilities of the analysis service
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Service is running and ready for webpage analysis"
+                required:
+                  - status
+
+components:
+  schemas:
+    WebpageAnalysis:
+      type: object
+      description: Result of webpage analysis
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL that was analyzed
+          example: "https://example.com"
+        title:
+          type: string
+          description: Page title
+          example: "Example Domain"
+        description:
+          type: string
+          description: Page description
+          example: "This is a placeholder analysis. Full implementation coming soon!"
+        keywords:
+          type: array
+          items:
+            type: string
+          description: Keywords found on the page
+          example: ["placeholder", "analysis", "webpage"]
+        meta_tags:
+          type: object
+          additionalProperties:
+            type: string
+          description: Meta tags found on the page
+          example:
+            viewport: "width=device-width, initial-scale=1"
+            robots: "index, follow"
+        status_code:
+          type: integer
+          description: HTTP status code of the page
+          example: 200
+        response_time:
+          type: string
+          format: duration
+          description: Time taken to fetch the page
+          example: "100ms"
+        word_count:
+          type: integer
+          description: Number of words on the page
+          example: 150
+        image_count:
+          type: integer
+          description: Number of images on the page
+          example: 5
+        link_count:
+          type: integer
+          description: Number of links on the page
+          example: 12
+        analyzed_at:
+          type: string
+          format: date-time
+          description: When the analysis was performed
+          example: "2024-01-15T10:30:00Z"
+      required:
+        - url
+        - title
+        - description
+        - status_code
+        - analyzed_at
+
+tags:
+  - name: Analysis
+    description: Webpage analysis operations
+  - name: System
+    description: System health and status operations 
