@@ -39,8 +39,9 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 	// Fetch the webpage
 	body, statusCode, err := s.httpClient.FetchWebpage(ctx, req.URL)
 	if err != nil {
+		// Create a more meaningful error response
 		return nil, &AnalysisError{
-			StatusCode:   0,
+			StatusCode:   statusCode,
 			ErrorMessage: err.Error(),
 			URL:          req.URL,
 		}
@@ -48,9 +49,11 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 
 	// Check if the response is successful
 	if statusCode != http.StatusOK {
+		// Provide specific error messages for different HTTP status codes
+		errorMessage := s.getHTTPStatusMessage(statusCode)
 		return nil, &AnalysisError{
 			StatusCode:   statusCode,
-			ErrorMessage: fmt.Sprintf("HTTP %d: %s", statusCode, http.StatusText(statusCode)),
+			ErrorMessage: errorMessage,
 			URL:          req.URL,
 		}
 	}
@@ -60,7 +63,7 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 	if err != nil {
 		return nil, &AnalysisError{
 			StatusCode:   statusCode,
-			ErrorMessage: err.Error(),
+			ErrorMessage: fmt.Sprintf("Failed to parse HTML content: %v", err),
 			URL:          req.URL,
 		}
 	}
@@ -136,6 +139,36 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 	analysis.ProcessingTime = time.Since(startTime)
 
 	return analysis, nil
+}
+
+// getHTTPStatusMessage returns a user-friendly message for HTTP status codes
+func (s *service) getHTTPStatusMessage(statusCode int) string {
+	switch statusCode {
+	case 400:
+		return "Bad Request: The URL format is invalid or the request is malformed."
+	case 401:
+		return "Unauthorized: Access to this resource requires authentication."
+	case 403:
+		return "Forbidden: Access to this resource is denied."
+	case 404:
+		return "Not Found: The requested webpage could not be found on the server."
+	case 408:
+		return "Request Timeout: The server took too long to respond."
+	case 429:
+		return "Too Many Requests: The server is receiving too many requests. Please try again later."
+	case 495:
+		return "SSL Certificate Error: There was a problem with the security certificate."
+	case 500:
+		return "Internal Server Error: The server encountered an error while processing the request."
+	case 502:
+		return "Bad Gateway: The server received an invalid response from an upstream server."
+	case 503:
+		return "Service Unavailable: The server is temporarily unable to handle the request."
+	case 504:
+		return "Gateway Timeout: The server acting as a gateway did not receive a timely response."
+	default:
+		return fmt.Sprintf("HTTP %d: %s", statusCode, http.StatusText(statusCode))
+	}
 }
 
 // GetAnalysisStatus returns the current status of the analysis service
