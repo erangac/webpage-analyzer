@@ -24,6 +24,10 @@ The Webpage Analyzer API provides endpoints for analyzing webpages and extractin
 #### Analysis Endpoints
 - `POST /api/analyze` - Analyze a webpage
 
+#### Documentation Endpoints
+- `GET /docs` - Interactive API documentation (Swagger UI)
+- `GET /api/openapi` - OpenAPI specification (YAML)
+
 ## Using the API
 
 ### Health Check
@@ -43,9 +47,20 @@ curl -X POST http://localhost:8990/api/analyze \
 curl http://localhost:8990/api/status
 ```
 
-## OpenAPI Documentation
+## Interactive API Documentation
 
-You can view the interactive API documentation by:
+### 🎯 **Quick Access**
+Once your application is running, visit: **http://localhost:8990/docs**
+
+This will open the interactive Swagger UI documentation where you can:
+- Browse all available endpoints
+- See request/response schemas
+- Test API calls directly from the browser
+- View examples and descriptions
+
+### Alternative Documentation Tools
+
+You can also view the API documentation using external tools:
 
 1. **Using Swagger UI**: Upload `openapi.yaml` to [Swagger Editor](https://editor.swagger.io/)
 2. **Using Redoc**: Upload `openapi.yaml` to [Redoc](https://redocly.github.io/redoc/)

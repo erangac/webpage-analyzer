@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"webpage-analyzer/internal/analyzer"
 )
@@ -75,4 +76,18 @@ func (h *Handler) GetAnalysisStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// ServeOpenAPI serves the OpenAPI specification
+func (h *Handler) ServeOpenAPI(w http.ResponseWriter, r *http.Request) {
+	// Read the OpenAPI specification file
+	openapiData, err := os.ReadFile("api/openapi.yaml")
+	if err != nil {
+		http.Error(w, "OpenAPI specification not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/yaml")
+	w.WriteHeader(http.StatusOK)
+	w.Write(openapiData)
 } 

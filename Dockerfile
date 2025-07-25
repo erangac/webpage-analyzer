@@ -13,5 +13,6 @@ FROM alpine:3.19
 WORKDIR /app
 COPY --from=backend-builder /backend ./backend
 COPY frontend/public ./frontend/public
+COPY api ./api
 EXPOSE 8990
 CMD ["./backend", "-port=8990"] 
