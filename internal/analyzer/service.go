@@ -7,23 +7,23 @@ import (
 	"time"
 )
 
-// service implements the Service interface
+// service implements the Service interface.
 type service struct {
-	httpClient    HTTPClient
-	htmlParser    HTMLParser
-	workerPool    *WorkerPool
+	httpClient HTTPClient
+	htmlParser HTMLParser
+	workerPool *WorkerPool
 }
 
-// NewService creates a new instance of the webpage analyzer service
+// NewService creates a new instance of the webpage analyzer service.
 func NewService() Service {
 	return &service{
 		httpClient: NewHTTPClient(),
 		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(5), // 5 workers for analysis tasks
+		workerPool: NewWorkerPool(5), // 5 workers for analysis tasks.
 	}
 }
 
-// NewServiceWithDependencies creates a service with custom dependencies (useful for testing)
+// NewServiceWithDependencies creates a service with custom dependencies (useful for testing).
 func NewServiceWithDependencies(httpClient HTTPClient, htmlParser HTMLParser, workerPool *WorkerPool) Service {
 	return &service{
 		httpClient: httpClient,
@@ -32,14 +32,14 @@ func NewServiceWithDependencies(httpClient HTTPClient, htmlParser HTMLParser, wo
 	}
 }
 
-// AnalyzeWebpage analyzes a given webpage using the worker pool
+// AnalyzeWebpage analyzes a given webpage using the worker pool.
 func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*WebpageAnalysis, error) {
 	startTime := time.Now()
 
-	// Fetch the webpage
+	// Fetch the webpage.
 	body, statusCode, err := s.httpClient.FetchWebpage(ctx, req.URL)
 	if err != nil {
-		// Create a more meaningful error response
+		// Create a more meaningful error response.
 		return nil, &AnalysisError{
 			StatusCode:   statusCode,
 			ErrorMessage: err.Error(),
@@ -47,9 +47,9 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 		}
 	}
 
-	// Check if the response is successful
+	// Check if the response is successful.
 	if statusCode != http.StatusOK {
-		// Provide specific error messages for different HTTP status codes
+		// Provide specific error messages for different HTTP status codes.
 		errorMessage := s.getHTTPStatusMessage(statusCode)
 		return nil, &AnalysisError{
 			StatusCode:   statusCode,
@@ -58,7 +58,7 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 		}
 	}
 
-	// Parse the HTML
+	// Parse the HTML.
 	doc, err := s.httpClient.ParseHTML(body)
 	if err != nil {
 		return nil, &AnalysisError{
@@ -68,17 +68,17 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 		}
 	}
 
-	// Initialize analysis result
+	// Initialize analysis result.
 	analysis := &WebpageAnalysis{
 		URL:        req.URL,
 		Headings:   make(map[string]int),
 		AnalyzedAt: time.Now(),
 	}
 
-	// Use worker pool for parallel analysis
+	// Use worker pool for parallel analysis.
 	taskGroup := NewAnalysisTaskGroup(s.workerPool)
 
-	// Add analysis tasks to the group
+	// Add analysis tasks to the group.
 	taskGroup.AddTask("html_version", func() (interface{}, error) {
 		version := s.htmlParser.ExtractHTMLVersion(doc)
 		return version, nil
@@ -108,10 +108,10 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 		return hasLogin, nil
 	})
 
-	// Execute all tasks in parallel
+	// Execute all tasks in parallel.
 	taskGroup.ExecuteAll()
 
-	// Collect results
+	// Collect results.
 	if htmlVersion, err := taskGroup.GetResult("html_version"); err == nil {
 		analysis.HTMLVersion = htmlVersion.(string)
 	}
@@ -135,13 +135,13 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 		analysis.HasLoginForm = hasLogin.(bool)
 	}
 
-	// Calculate processing time
+	// Calculate processing time.
 	analysis.ProcessingTime = time.Since(startTime)
 
 	return analysis, nil
 }
 
-// getHTTPStatusMessage returns a user-friendly message for HTTP status codes
+// getHTTPStatusMessage returns a user-friendly message for HTTP status codes.
 func (s *service) getHTTPStatusMessage(statusCode int) string {
 	switch statusCode {
 	case 400:
@@ -171,7 +171,7 @@ func (s *service) getHTTPStatusMessage(statusCode int) string {
 	}
 }
 
-// GetAnalysisStatus returns the current status of the analysis service
+// GetAnalysisStatus returns the current status of the analysis service.
 func (s *service) GetAnalysisStatus(ctx context.Context) (string, error) {
 	return "Service is running and ready for parallel webpage analysis with worker pool", nil
-} 
+}

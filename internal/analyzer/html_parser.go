@@ -6,40 +6,40 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Constants for common keywords and patterns
+// Constants for common keywords and patterns.
 const (
-	// HTML version keywords
-	html5Keyword     = "html5"
-	html4Keyword     = "html4"
-	xhtmlKeyword     = "xhtml"
-	
-	// Login form keywords
-	loginKeyword     = "login"
-	signInKeyword    = "sign in"
-	usernameKeyword  = "username"
-	passwordKeyword  = "password"
-	emailKeyword     = "email"
-	logInKeyword     = "log in"
-	
-	// Default values
+	// HTML version keywords.
+	html5Keyword = "html5"
+	html4Keyword = "html4"
+	xhtmlKeyword = "xhtml"
+
+	// Login form keywords.
+	loginKeyword    = "login"
+	signInKeyword   = "sign in"
+	usernameKeyword = "username"
+	passwordKeyword = "password"
+	emailKeyword    = "email"
+	logInKeyword    = "log in"
+
+	// Default values.
 	defaultHTMLVersion = "HTML5 (implied)"
 )
 
-// htmlParser implements the HTMLParser interface
+// htmlParser implements the HTMLParser interface.
 type htmlParser struct{}
 
-// NewHTMLParser creates a new HTML parser instance
+// NewHTMLParser creates a new HTML parser instance.
 func NewHTMLParser() HTMLParser {
 	return &htmlParser{}
 }
 
-// toHTMLNode safely converts interface{} to *html.Node
+// toHTMLNode safely converts interface{} to *html.Node.
 func (p *htmlParser) toHTMLNode(doc interface{}) (*html.Node, bool) {
 	htmlDoc, ok := doc.(*html.Node)
 	return htmlDoc, ok
 }
 
-// ExtractHTMLVersion determines the HTML version
+// ExtractHTMLVersion determines the HTML version.
 func (p *htmlParser) ExtractHTMLVersion(doc interface{}) string {
 	htmlDoc, ok := p.toHTMLNode(doc)
 	if !ok {
@@ -53,12 +53,12 @@ func (p *htmlParser) ExtractHTMLVersion(doc interface{}) string {
 	return result
 }
 
-// findDoctype searches for DOCTYPE declaration
+// findDoctype searches for DOCTYPE declaration.
 func (p *htmlParser) findDoctype(n *html.Node) string {
 	if n.Type == html.DoctypeNode {
 		return p.parseDoctype(n)
 	}
-	
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if result := p.findDoctype(c); result != "" {
 			return result
@@ -67,14 +67,14 @@ func (p *htmlParser) findDoctype(n *html.Node) string {
 	return ""
 }
 
-// parseDoctype parses the DOCTYPE declaration
+// parseDoctype parses the DOCTYPE declaration.
 func (p *htmlParser) parseDoctype(n *html.Node) string {
 	if len(n.Attr) == 0 {
 		return defaultHTMLVersion
 	}
-	
+
 	doctype := strings.ToLower(n.Attr[0].Val)
-	
+
 	switch {
 	case strings.Contains(doctype, html5Keyword) || strings.Contains(doctype, "html 5"):
 		return "HTML5"
@@ -87,7 +87,7 @@ func (p *htmlParser) parseDoctype(n *html.Node) string {
 	}
 }
 
-// ExtractPageTitle extracts the page title
+// ExtractPageTitle extracts the page title.
 func (p *htmlParser) ExtractPageTitle(doc interface{}) string {
 	htmlDoc, ok := p.toHTMLNode(doc)
 	if !ok {
@@ -97,12 +97,12 @@ func (p *htmlParser) ExtractPageTitle(doc interface{}) string {
 	return p.findTitle(htmlDoc)
 }
 
-// findTitle searches for the title element
+// findTitle searches for the title element.
 func (p *htmlParser) findTitle(n *html.Node) string {
 	if p.isTitleElement(n) {
 		return p.extractTitleText(n)
 	}
-	
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if result := p.findTitle(c); result != "" {
 			return result
@@ -111,12 +111,12 @@ func (p *htmlParser) findTitle(n *html.Node) string {
 	return ""
 }
 
-// isTitleElement checks if the node is a title element
+// isTitleElement checks if the node is a title element.
 func (p *htmlParser) isTitleElement(n *html.Node) bool {
 	return n.Type == html.ElementNode && n.Data == "title"
 }
 
-// extractTitleText extracts text from title element
+// extractTitleText extracts text from title element.
 func (p *htmlParser) extractTitleText(n *html.Node) string {
 	if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
 		return strings.TrimSpace(n.FirstChild.Data)
@@ -124,7 +124,7 @@ func (p *htmlParser) extractTitleText(n *html.Node) string {
 	return ""
 }
 
-// ExtractHeadings counts headings by level
+// ExtractHeadings counts headings by level.
 func (p *htmlParser) ExtractHeadings(doc interface{}) map[string]int {
 	htmlDoc, ok := p.toHTMLNode(doc)
 	if !ok {
@@ -136,23 +136,23 @@ func (p *htmlParser) ExtractHeadings(doc interface{}) map[string]int {
 	return headings
 }
 
-// countHeadings recursively counts heading elements
+// countHeadings recursively counts heading elements.
 func (p *htmlParser) countHeadings(n *html.Node, headings map[string]int) {
 	if p.isHeadingElement(n) {
 		headings[n.Data]++
 	}
-	
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		p.countHeadings(c, headings)
 	}
 }
 
-// isHeadingElement checks if the node is a heading element
+// isHeadingElement checks if the node is a heading element.
 func (p *htmlParser) isHeadingElement(n *html.Node) bool {
 	if n.Type != html.ElementNode {
 		return false
 	}
-	
+
 	switch n.Data {
 	case "h1", "h2", "h3", "h4", "h5", "h6":
 		return true
@@ -161,7 +161,7 @@ func (p *htmlParser) isHeadingElement(n *html.Node) bool {
 	}
 }
 
-// ExtractLinks analyzes internal and external links
+// ExtractLinks analyzes internal and external links.
 func (p *htmlParser) ExtractLinks(doc interface{}, baseURL string) (internal, external, inaccessible int) {
 	htmlDoc, ok := p.toHTMLNode(doc)
 	if !ok {
@@ -172,37 +172,37 @@ func (p *htmlParser) ExtractLinks(doc interface{}, baseURL string) (internal, ex
 	return internal, external, inaccessible
 }
 
-// analyzeLinks recursively analyzes link elements
+// analyzeLinks recursively analyzes link elements.
 func (p *htmlParser) analyzeLinks(n *html.Node, internal, external, inaccessible *int) {
 	if p.isLinkElement(n) {
 		p.processLink(n, internal, external, inaccessible)
 	}
-	
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		p.analyzeLinks(c, internal, external, inaccessible)
 	}
 }
 
-// isLinkElement checks if the node is a link element
+// isLinkElement checks if the node is a link element.
 func (p *htmlParser) isLinkElement(n *html.Node) bool {
 	return n.Type == html.ElementNode && n.Data == "a"
 }
 
-// processLink processes a single link element
+// processLink processes a single link element.
 func (p *htmlParser) processLink(n *html.Node, internal, external, inaccessible *int) {
 	href := p.getHrefAttribute(n)
-	
+
 	if href == "" {
 		*inaccessible++
 		return
 	}
-	
+
 	if p.isValidLink(href) {
 		p.categorizeLink(href, internal, external)
 	}
 }
 
-// getHrefAttribute extracts the href attribute from a link
+// getHrefAttribute extracts the href attribute from a link.
 func (p *htmlParser) getHrefAttribute(n *html.Node) string {
 	for _, attr := range n.Attr {
 		if attr.Key == "href" {
@@ -212,12 +212,12 @@ func (p *htmlParser) getHrefAttribute(n *html.Node) string {
 	return ""
 }
 
-// isValidLink checks if a link is valid (not empty or javascript)
+// isValidLink checks if a link is valid (not empty or javascript).
 func (p *htmlParser) isValidLink(href string) bool {
 	return href != "" && !strings.HasPrefix(href, "javascript:")
 }
 
-// categorizeLink categorizes a link as internal or external
+// categorizeLink categorizes a link as internal or external.
 func (p *htmlParser) categorizeLink(href string, internal, external *int) {
 	switch {
 	case strings.HasPrefix(href, "http"):
@@ -227,12 +227,12 @@ func (p *htmlParser) categorizeLink(href string, internal, external *int) {
 	case strings.HasPrefix(href, "mailto:") || strings.HasPrefix(href, "tel:"):
 		*external++
 	default:
-		// Relative links without leading slash
+		// Relative links without leading slash.
 		*internal++
 	}
 }
 
-// ExtractLoginForm checks if the page contains a login form
+// ExtractLoginForm checks if the page contains a login form.
 func (p *htmlParser) ExtractLoginForm(doc interface{}) bool {
 	htmlDoc, ok := p.toHTMLNode(doc)
 	if !ok {
@@ -242,14 +242,14 @@ func (p *htmlParser) ExtractLoginForm(doc interface{}) bool {
 	return p.findLoginForm(htmlDoc)
 }
 
-// findLoginForm searches for login form indicators
+// findLoginForm searches for login form indicators.
 func (p *htmlParser) findLoginForm(n *html.Node) bool {
 	if p.isFormElement(n) {
 		if p.isLoginForm(n) {
 			return true
 		}
 	}
-	
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if p.findLoginForm(c) {
 			return true
@@ -258,21 +258,21 @@ func (p *htmlParser) findLoginForm(n *html.Node) bool {
 	return false
 }
 
-// isFormElement checks if the node is a form element
+// isFormElement checks if the node is a form element.
 func (p *htmlParser) isFormElement(n *html.Node) bool {
 	return n.Type == html.ElementNode && n.Data == "form"
 }
 
-// isLoginForm checks if a form is a login form
+// isLoginForm checks if a form is a login form.
 func (p *htmlParser) isLoginForm(n *html.Node) bool {
 	formText := strings.ToLower(p.getNodeText(n))
 	return p.containsLoginKeywords(formText) || p.hasLoginInputs(n)
 }
 
-// containsLoginKeywords checks if text contains login-related keywords
+// containsLoginKeywords checks if text contains login-related keywords.
 func (p *htmlParser) containsLoginKeywords(text string) bool {
 	keywords := []string{loginKeyword, signInKeyword, usernameKeyword, passwordKeyword, emailKeyword, logInKeyword}
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(text, keyword) {
 			return true
@@ -281,17 +281,17 @@ func (p *htmlParser) containsLoginKeywords(text string) bool {
 	return false
 }
 
-// hasLoginInputs checks if the form has login-related input fields
+// hasLoginInputs checks if the form has login-related input fields.
 func (p *htmlParser) hasLoginInputs(n *html.Node) bool {
 	return p.checkInputs(n)
 }
 
-// checkInputs recursively checks for login-related input fields
+// checkInputs recursively checks for login-related input fields.
 func (p *htmlParser) checkInputs(node *html.Node) bool {
 	if p.isInputElement(node) {
 		return p.isLoginInput(node)
 	}
-	
+
 	for c := node.FirstChild; c != nil; c = c.NextSibling {
 		if p.checkInputs(c) {
 			return true
@@ -300,12 +300,12 @@ func (p *htmlParser) checkInputs(node *html.Node) bool {
 	return false
 }
 
-// isInputElement checks if the node is an input element
+// isInputElement checks if the node is an input element.
 func (p *htmlParser) isInputElement(n *html.Node) bool {
 	return n.Type == html.ElementNode && n.Data == "input"
 }
 
-// isLoginInput checks if an input field is login-related
+// isLoginInput checks if an input field is login-related.
 func (p *htmlParser) isLoginInput(n *html.Node) bool {
 	for _, attr := range n.Attr {
 		if p.isLoginAttribute(attr) {
@@ -315,7 +315,7 @@ func (p *htmlParser) isLoginInput(n *html.Node) bool {
 	return false
 }
 
-// isLoginAttribute checks if an attribute indicates a login field
+// isLoginAttribute checks if an attribute indicates a login field.
 func (p *htmlParser) isLoginAttribute(attr html.Attribute) bool {
 	switch attr.Key {
 	case "type":
@@ -327,11 +327,11 @@ func (p *htmlParser) isLoginAttribute(attr html.Attribute) bool {
 	}
 }
 
-// containsLoginKeyword checks if a string contains login keywords
+// containsLoginKeyword checks if a string contains login keywords.
 func (p *htmlParser) containsLoginKeyword(s string) bool {
 	name := strings.ToLower(s)
 	keywords := []string{"user", "pass", "login", "email"}
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(name, keyword) {
 			return true
@@ -340,20 +340,20 @@ func (p *htmlParser) containsLoginKeyword(s string) bool {
 	return false
 }
 
-// getNodeText extracts text content from a node
+// getNodeText extracts text content from a node.
 func (p *htmlParser) getNodeText(n *html.Node) string {
 	var text strings.Builder
 	p.extractText(n, &text)
 	return text.String()
 }
 
-// extractText recursively extracts text from a node
+// extractText recursively extracts text from a node.
 func (p *htmlParser) extractText(node *html.Node, text *strings.Builder) {
 	if node.Type == html.TextNode {
 		text.WriteString(node.Data)
 	}
-	
+
 	for c := node.FirstChild; c != nil; c = c.NextSibling {
 		p.extractText(c, text)
 	}
-} 
+}
