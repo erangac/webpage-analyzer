@@ -113,7 +113,7 @@ func (p *htmlParser) findTitle(n *html.Node) string {
 
 // isTitleElement checks if the node is a title element.
 func (p *htmlParser) isTitleElement(n *html.Node) bool {
-	return n.Type == html.ElementNode && n.Data == "title"
+	return n.Type == html.ElementNode && strings.EqualFold(n.Data, "title")
 }
 
 // extractTitleText extracts text from title element.
@@ -153,7 +153,7 @@ func (p *htmlParser) isHeadingElement(n *html.Node) bool {
 		return false
 	}
 
-	switch n.Data {
+	switch strings.ToLower(n.Data) {
 	case "h1", "h2", "h3", "h4", "h5", "h6":
 		return true
 	default:
@@ -185,7 +185,7 @@ func (p *htmlParser) analyzeLinks(n *html.Node, internal, external, inaccessible
 
 // isLinkElement checks if the node is a link element.
 func (p *htmlParser) isLinkElement(n *html.Node) bool {
-	return n.Type == html.ElementNode && n.Data == "a"
+	return n.Type == html.ElementNode && strings.EqualFold(n.Data, "a")
 }
 
 // processLink processes a single link element.
@@ -205,7 +205,7 @@ func (p *htmlParser) processLink(n *html.Node, internal, external, inaccessible 
 // getHrefAttribute extracts the href attribute from a link.
 func (p *htmlParser) getHrefAttribute(n *html.Node) string {
 	for _, attr := range n.Attr {
-		if attr.Key == "href" {
+		if strings.EqualFold(attr.Key, "href") {
 			return attr.Val
 		}
 	}
@@ -214,17 +214,17 @@ func (p *htmlParser) getHrefAttribute(n *html.Node) string {
 
 // isValidLink checks if a link is valid (not empty or javascript).
 func (p *htmlParser) isValidLink(href string) bool {
-	return href != "" && !strings.HasPrefix(href, "javascript:")
+	return href != "" && !strings.HasPrefix(strings.ToLower(href), "javascript:")
 }
 
 // categorizeLink categorizes a link as internal or external.
 func (p *htmlParser) categorizeLink(href string, internal, external *int) {
 	switch {
-	case strings.HasPrefix(href, "http"):
+	case strings.HasPrefix(strings.ToLower(href), "http"):
 		*external++
 	case strings.HasPrefix(href, "/") || strings.HasPrefix(href, "#"):
 		*internal++
-	case strings.HasPrefix(href, "mailto:") || strings.HasPrefix(href, "tel:"):
+	case strings.HasPrefix(strings.ToLower(href), "mailto:") || strings.HasPrefix(strings.ToLower(href), "tel:"):
 		*external++
 	default:
 		// Relative links without leading slash.
@@ -260,7 +260,7 @@ func (p *htmlParser) findLoginForm(n *html.Node) bool {
 
 // isFormElement checks if the node is a form element.
 func (p *htmlParser) isFormElement(n *html.Node) bool {
-	return n.Type == html.ElementNode && n.Data == "form"
+	return n.Type == html.ElementNode && strings.EqualFold(n.Data, "form")
 }
 
 // isLoginForm checks if a form is a login form.
@@ -274,7 +274,7 @@ func (p *htmlParser) containsLoginKeywords(text string) bool {
 	keywords := []string{loginKeyword, signInKeyword, usernameKeyword, passwordKeyword, emailKeyword, logInKeyword}
 
 	for _, keyword := range keywords {
-		if strings.Contains(text, keyword) {
+		if strings.Contains(strings.ToLower(text), keyword) {
 			return true
 		}
 	}
@@ -302,7 +302,7 @@ func (p *htmlParser) checkInputs(node *html.Node) bool {
 
 // isInputElement checks if the node is an input element.
 func (p *htmlParser) isInputElement(n *html.Node) bool {
-	return n.Type == html.ElementNode && n.Data == "input"
+	return n.Type == html.ElementNode && strings.EqualFold(n.Data, "input")
 }
 
 // isLoginInput checks if an input field is login-related.
@@ -317,9 +317,9 @@ func (p *htmlParser) isLoginInput(n *html.Node) bool {
 
 // isLoginAttribute checks if an attribute indicates a login field.
 func (p *htmlParser) isLoginAttribute(attr html.Attribute) bool {
-	switch attr.Key {
+	switch strings.ToLower(attr.Key) {
 	case "type":
-		return attr.Val == "password"
+		return strings.EqualFold(attr.Val, "password")
 	case "name", "id":
 		return p.containsLoginKeyword(attr.Val)
 	default:

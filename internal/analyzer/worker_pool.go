@@ -2,11 +2,16 @@ package analyzer
 
 import (
 	"context"
+	"log"
 	"sync"
 )
 
+// TaskFunc represents a unit of work to be executed by a worker.
+// It should return an error if the task fails, or nil if successful.
+type TaskFunc func() error
+
 // Task represents a unit of work to be executed.
-type Task func() error
+type Task = TaskFunc
 
 // WorkerPool manages a pool of workers for concurrent task execution.
 type WorkerPool struct {
@@ -49,7 +54,7 @@ func (wp *WorkerPool) worker() {
 			if err := task(); err != nil {
 				// Log error but continue processing other tasks.
 				// In a production system, you might want to handle errors differently.
-				_ = err // Suppress unused variable warning.
+				log.Printf("Worker task failed: %v", err)
 			}
 		case <-wp.ctx.Done():
 			return // Context cancelled, exit worker.
@@ -69,18 +74,15 @@ func (wp *WorkerPool) Submit(task Task) {
 
 // SubmitAndWait submits a task and waits for it to complete.
 func (wp *WorkerPool) SubmitAndWait(task Task) error {
-	var result error
-	var wg sync.WaitGroup
-	wg.Add(1)
+	resultChan := make(chan error, 1)
 
 	wp.Submit(func() error {
-		defer wg.Done()
-		result = task()
-		return result
+		err := task()
+		resultChan <- err
+		return err
 	})
 
-	wg.Wait()
-	return result
+	return <-resultChan
 }
 
 // Wait waits for all submitted tasks to complete.
@@ -137,6 +139,9 @@ func (atg *AnalysisTaskGroup) ExecuteAll() {
 			result, err := task.Task()
 			task.Result = result
 			task.Error = err
+			if err != nil {
+				log.Printf("Analysis task '%s' failed: %v", task.Name, err)
+			}
 			return err
 		})
 	}

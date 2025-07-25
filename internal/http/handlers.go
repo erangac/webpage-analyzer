@@ -8,6 +8,10 @@ import (
 	"webpage-analyzer/internal/analyzer"
 )
 
+const (
+	openAPIFilePath = "api/swagger.yaml"
+)
+
 // Handler handles HTTP requests for the webpage analyzer.
 type Handler struct {
 	analyzerService analyzer.Service
@@ -20,6 +24,21 @@ func NewHandler(analyzerService analyzer.Service) *Handler {
 	}
 }
 
+// writeJSON writes a JSON response with proper headers and error handling.
+func (h *Handler) writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// writeError writes an error response with proper status code and message.
+func (h *Handler) writeError(w http.ResponseWriter, statusCode int, message string) {
+	http.Error(w, message, statusCode)
+}
+
 // HealthCheck handles health check requests.
 // @Summary Health check
 // @Description Check if the service is running and healthy
@@ -29,15 +48,11 @@ func NewHandler(analyzerService analyzer.Service) *Handler {
 // @Success 200 {object} map[string]string
 // @Router /api/health [get]
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	response := map[string]string{
 		"status":  "healthy",
 		"service": "webpage-analyzer",
 	}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	h.writeJSON(w, http.StatusOK, response)
 }
 
 // AnalyzeWebpage handles webpage analysis requests.
@@ -53,40 +68,32 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // @Router /api/analyze [post]
 func (h *Handler) AnalyzeWebpage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		h.writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	// Parse request body.
 	var req analyzer.AnalysisRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		h.writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	// Analyze the webpage.
 	analysis, err := h.analyzerService.AnalyzeWebpage(r.Context(), req)
 	if err != nil {
-		// Check if it's an AnalysisError.
+		// Check if it's an AnalysisError and return it as JSON.
 		if analysisErr, ok := err.(*analyzer.AnalysisError); ok {
-			w.WriteHeader(http.StatusBadRequest)
-			if err := json.NewEncoder(w).Encode(analysisErr); err != nil {
-				http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
-				return
-			}
+			h.writeJSON(w, http.StatusBadRequest, analysisErr)
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		// For other errors, return a generic error message.
+		h.writeError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
 	// Return analysis result.
-	if err := json.NewEncoder(w).Encode(analysis); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	h.writeJSON(w, http.StatusOK, analysis)
 }
 
 // GetAnalysisStatus handles status requests.
@@ -99,20 +106,16 @@ func (h *Handler) AnalyzeWebpage(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /api/status [get]
 func (h *Handler) GetAnalysisStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	status, err := h.analyzerService.GetAnalysisStatus(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to get status", http.StatusInternalServerError)
+		h.writeError(w, http.StatusInternalServerError, "Failed to get status")
 		return
 	}
 
 	response := map[string]string{
 		"status": status,
 	}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	h.writeJSON(w, http.StatusOK, response)
 }
 
 // ServeOpenAPI serves the OpenAPI specification.
@@ -127,13 +130,13 @@ func (h *Handler) GetAnalysisStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ServeOpenAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	// Serve the dynamically generated OpenAPI spec
-	openapiData, err := os.ReadFile("api/swagger.yaml")
+	openapiData, err := os.ReadFile(openAPIFilePath)
 	if err != nil {
-		http.Error(w, "Failed to read OpenAPI spec", http.StatusInternalServerError)
+		h.writeError(w, http.StatusInternalServerError, "Failed to read OpenAPI spec")
 		return
 	}
 	if _, err := w.Write(openapiData); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		h.writeError(w, http.StatusInternalServerError, "Failed to write response")
 		return
 	}
 }
