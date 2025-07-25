@@ -149,6 +149,11 @@ components:
           format: date-time
           description: When the analysis was performed
           example: "2024-01-15T10:30:00Z"
+        processing_time:
+          type: string
+          format: duration
+          description: Time taken to process the analysis
+          example: "150ms"
       required:
         - url
         - html_version
@@ -159,6 +164,7 @@ components:
         - inaccessible_links
         - has_login_form
         - analyzed_at
+        - processing_time
 
     AnalysisError:
       type: object

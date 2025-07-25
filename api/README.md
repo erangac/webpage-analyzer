@@ -16,6 +16,16 @@ The Webpage Analyzer API provides endpoints for analyzing webpages and extractin
 - **Headings**: Count of headings by level (h1, h2, h3, etc.)
 - **Links**: Internal and external link counts
 - **Login Forms**: Detection of login forms on the page
+- **Performance Metrics**: Processing time for analysis
+
+### 🚀 **Parallel Processing**
+
+The analyzer uses **multi-threaded processing** to handle large webpages efficiently:
+
+- **5 concurrent tasks** run in parallel
+- **Thread-safe operations** with proper synchronization
+- **Significant performance improvement** for large pages
+- **Processing time tracking** included in results
 
 ### Base URLs
 - **Development**: `http://localhost:8990`
@@ -62,7 +72,8 @@ curl -X POST http://localhost:8990/api/analyze \
   "external_links": 2,
   "inaccessible_links": 0,
   "has_login_form": false,
-  "analyzed_at": "2024-01-15T10:30:00Z"
+  "analyzed_at": "2024-01-15T10:30:00Z",
+  "processing_time": "150ms"
 }
 ```
 
@@ -91,8 +102,26 @@ curl http://localhost:8990/api/status
 4. **Links**: 
    - Internal links (relative URLs starting with `/` or `#`)
    - External links (absolute URLs starting with `http`)
-   - Inaccessible links (currently set to 0, can be enhanced)
+   - Inaccessible links (links without href attributes)
 5. **Login Forms**: Detects forms containing login-related keywords
+6. **Processing Time**: Time taken to complete the analysis
+
+### Parallel Processing Architecture:
+
+The analyzer runs **5 concurrent tasks**:
+
+1. **HTML Version Detection** - Independent task
+2. **Page Title Extraction** - Independent task  
+3. **Heading Analysis** - Thread-safe map operations
+4. **Link Analysis** - Thread-safe counter operations
+5. **Login Form Detection** - Independent boolean result
+
+### Performance Benefits:
+
+- **Faster processing** for large webpages
+- **Better resource utilization** with concurrent tasks
+- **Scalable architecture** that can handle complex pages
+- **Processing time tracking** for performance monitoring
 
 ### Error Handling
 
@@ -139,8 +168,9 @@ This API follows semantic versioning. The current version is `1.0.0`.
 - More sophisticated login form detection
 - Meta tag analysis
 - Image analysis
-- Performance metrics
+- Performance metrics dashboard
 - Authentication and authorization
 - Rate limiting
 - Webhook support
-- Batch processing 
+- Batch processing
+- Real-time analysis streaming 
