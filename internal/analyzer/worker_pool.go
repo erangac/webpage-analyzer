@@ -94,7 +94,8 @@ func (wp *WorkerPool) Wait() {
 // Shutdown gracefully shuts down the worker pool.
 func (wp *WorkerPool) Shutdown() {
 	wp.cancel() // Cancel context to stop workers.
-	wp.Wait()   // Wait for all workers to finish.
+	close(wp.taskQueue) // Close task queue to signal workers to stop
+	wp.wg.Wait() // Wait for all workers to finish.
 }
 
 // AnalysisTask represents a specific analysis task with result.

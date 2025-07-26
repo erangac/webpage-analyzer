@@ -21,6 +21,14 @@ RUN swag init -g cmd/webpage-analyzer/main.go -o api
 # Ensure dependencies are properly resolved
 RUN go mod tidy
 
+    # Run unit tests with coverage
+    RUN go test -v -coverprofile=coverage.out -covermode=atomic ./internal/analyzer/... -timeout=30s
+    RUN go test -v -coverprofile=coverage.out -covermode=atomic ./internal/http/... -timeout=30s
+    RUN go test -v -coverprofile=coverage.out -covermode=atomic ./cmd/webpage-analyzer/... -timeout=30s
+
+# Display test coverage summary
+RUN go tool cover -func=coverage.out
+
 # Run basic Go checks
 RUN go vet ./...
 RUN gofmt -s -l . | grep -q . && (echo "Code formatting issues found. Run 'go fmt ./...' to fix." && exit 1) || true

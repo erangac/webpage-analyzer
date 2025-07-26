@@ -10,6 +10,7 @@ A modern Go project for analyzing web pages with comprehensive metadata extracti
 - **Simple Frontend**: Static HTML/CSS/JS interface served by the Go backend
 - **Docker Support**: Easy deployment with containerization
 - **Dynamic OpenAPI Documentation**: Auto-generated API specification using Swaggo with interactive documentation
+- **Comprehensive Unit Tests**: Extensive test coverage with automated testing in Docker builds
 
 ## 📁 Project Structure
 
@@ -30,7 +31,8 @@ webpage-analyzer/
 │   └── public/                # Static HTML, CSS, JS files (no build step)
 ├── api/                       # Generated API documentation (Swaggo output at runtime)
 ├── scripts/                   # Helper scripts
-│   └── lint.sh               # Code quality checks
+│   ├── lint.sh               # Code quality checks
+│   └── test.sh               # Unit tests and coverage
 ├── Dockerfile                 # Multi-stage build for backend and static frontend
 ├── go.mod, go.sum             # Go module files
 └── README.md                  # Project documentation
@@ -43,7 +45,7 @@ webpage-analyzer/
 Build and run with Docker:
 
 ```bash
-# Build the Docker image
+# Build the Docker image (includes running all tests)
 docker build -t webpage-analyzer .
 
 # Run the application
@@ -60,6 +62,59 @@ go mod download
 
 # Run the application
 go run cmd/webpage-analyzer/main.go
+```
+
+## 🧪 Testing
+
+### Running Tests Locally
+
+```bash
+# Run all tests with coverage
+./scripts/test.sh
+
+# Run specific test packages
+go test -v ./internal/analyzer/...
+go test -v ./internal/http/...
+go test -v ./cmd/webpage-analyzer/...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run tests with race detection
+go test -race ./...
+```
+
+### Test Coverage
+
+The project includes comprehensive unit tests covering:
+
+- **HTML Parser**: Tests for HTML version detection, title extraction, headings counting, link analysis, and login form detection
+- **HTTP Client**: Tests for various HTTP scenarios including success, errors, timeouts, and redirects
+- **Worker Pool**: Tests for concurrent task execution, error handling, and graceful shutdown
+- **HTTP Handlers**: Tests for all API endpoints with mock services
+- **Service Layer**: Tests for the main analysis service with mocked dependencies
+
+### Docker Integration
+
+Tests are automatically run during Docker builds:
+
+- **Unit tests** run before building the application
+- **Coverage reports** are generated and displayed
+- **Build fails** if any tests fail
+- **Code quality checks** (go vet, gofmt) are included
+
+### Test Structure
+
+```
+├── internal/analyzer/
+│   ├── html_parser_test.go    # HTML parsing tests
+│   ├── http_client_test.go    # HTTP client tests
+│   ├── service_test.go        # Service layer tests
+│   └── worker_pool_test.go    # Worker pool tests
+├── internal/http/
+│   └── handlers_test.go       # HTTP handler tests
+└── cmd/webpage-analyzer/
+    └── main_test.go           # Main application tests
 ```
 
 ## 🌐 API Overview
