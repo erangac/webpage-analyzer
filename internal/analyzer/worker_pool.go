@@ -2,7 +2,7 @@ package analyzer
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 )
 
@@ -54,7 +54,7 @@ func (wp *WorkerPool) worker() {
 			if err := task(); err != nil {
 				// Log error but continue processing other tasks.
 				// In a production system, you might want to handle errors differently.
-				log.Printf("Worker task failed: %v", err)
+				slog.Error("Worker task failed", "error", err)
 			}
 		case <-wp.ctx.Done():
 			return // Context cancelled, exit worker.
@@ -93,9 +93,9 @@ func (wp *WorkerPool) Wait() {
 
 // Shutdown gracefully shuts down the worker pool.
 func (wp *WorkerPool) Shutdown() {
-	wp.cancel() // Cancel context to stop workers.
+	wp.cancel()         // Cancel context to stop workers.
 	close(wp.taskQueue) // Close task queue to signal workers to stop
-	wp.wg.Wait() // Wait for all workers to finish.
+	wp.wg.Wait()        // Wait for all workers to finish.
 }
 
 // AnalysisTask represents a specific analysis task with result.
@@ -141,7 +141,10 @@ func (atg *AnalysisTaskGroup) ExecuteAll() {
 			task.Result = result
 			task.Error = err
 			if err != nil {
-				log.Printf("Analysis task '%s' failed: %v", task.Name, err)
+				slog.Error("Analysis task failed",
+					"task_name", task.Name,
+					"error", err,
+				)
 			}
 			return err
 		})

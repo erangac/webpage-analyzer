@@ -2,8 +2,10 @@ package http
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"webpage-analyzer/internal/analyzer"
 )
@@ -29,6 +31,7 @@ func (h *Handler) writeJSON(w http.ResponseWriter, statusCode int, data interfac
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("Failed to encode JSON response", "error", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
@@ -36,6 +39,7 @@ func (h *Handler) writeJSON(w http.ResponseWriter, statusCode int, data interfac
 
 // writeError writes an error response with proper status code and message.
 func (h *Handler) writeError(w http.ResponseWriter, statusCode int, message string) {
+	slog.Warn("HTTP error response", "status_code", statusCode, "message", message)
 	http.Error(w, message, statusCode)
 }
 
@@ -48,11 +52,20 @@ func (h *Handler) writeError(w http.ResponseWriter, statusCode int, message stri
 // @Success 200 {object} map[string]string
 // @Router /api/health [get]
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	response := map[string]string{
 		"status":  "healthy",
 		"service": "webpage-analyzer",
 	}
 	h.writeJSON(w, http.StatusOK, response)
+
+	slog.Info("Health check completed",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"duration", time.Since(start),
+		"status_code", http.StatusOK,
+	)
 }
 
 // AnalyzeWebpage handles webpage analysis requests.
@@ -67,7 +80,14 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /api/analyze [post]
 func (h *Handler) AnalyzeWebpage(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	if r.Method != http.MethodPost {
+		slog.Warn("Invalid method for analyze endpoint",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"expected_method", http.MethodPost,
+		)
 		h.writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
@@ -75,25 +95,65 @@ func (h *Handler) AnalyzeWebpage(w http.ResponseWriter, r *http.Request) {
 	// Parse request body.
 	var req analyzer.AnalysisRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.Warn("Failed to decode request body",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"error", err,
+		)
 		h.writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+
+	slog.Info("Starting webpage analysis",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"url", req.URL,
+	)
 
 	// Analyze the webpage.
 	analysis, err := h.analyzerService.AnalyzeWebpage(r.Context(), req)
 	if err != nil {
 		// Check if it's an AnalysisError and return it as JSON.
 		if analysisErr, ok := err.(*analyzer.AnalysisError); ok {
+			slog.Warn("Analysis failed with analysis error",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"url", req.URL,
+				"error_type", "analysis_error",
+				"status_code", analysisErr.StatusCode,
+				"error_message", analysisErr.ErrorMessage,
+				"duration", time.Since(start),
+			)
 			h.writeJSON(w, http.StatusBadRequest, analysisErr)
 			return
 		}
 		// For other errors, return a generic error message.
+		slog.Error("Analysis failed with internal error",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"url", req.URL,
+			"error", err,
+			"duration", time.Since(start),
+		)
 		h.writeError(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
 	// Return analysis result.
 	h.writeJSON(w, http.StatusOK, analysis)
+
+	slog.Info("Webpage analysis completed successfully",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"url", req.URL,
+		"status_code", http.StatusOK,
+		"duration", time.Since(start),
+		"has_login_form", analysis.HasLoginForm,
+		"internal_links", analysis.InternalLinks,
+		"external_links", analysis.ExternalLinks,
+		"inaccessible_links", analysis.InaccessibleLinks,
+		"headings_count", len(analysis.Headings),
+	)
 }
 
 // GetAnalysisStatus handles status requests.
@@ -106,8 +166,16 @@ func (h *Handler) AnalyzeWebpage(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /api/status [get]
 func (h *Handler) GetAnalysisStatus(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	status, err := h.analyzerService.GetAnalysisStatus(r.Context())
 	if err != nil {
+		slog.Error("Failed to get analysis status",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"error", err,
+			"duration", time.Since(start),
+		)
 		h.writeError(w, http.StatusInternalServerError, "Failed to get status")
 		return
 	}
@@ -116,6 +184,13 @@ func (h *Handler) GetAnalysisStatus(w http.ResponseWriter, r *http.Request) {
 		"status": status,
 	}
 	h.writeJSON(w, http.StatusOK, response)
+
+	slog.Info("Status request completed",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"status_code", http.StatusOK,
+		"duration", time.Since(start),
+	)
 }
 
 // ServeOpenAPI serves the OpenAPI specification.
@@ -128,15 +203,38 @@ func (h *Handler) GetAnalysisStatus(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} map[string]string
 // @Router /api/openapi [get]
 func (h *Handler) ServeOpenAPI(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	w.Header().Set("Content-Type", "application/yaml")
 	// Serve the dynamically generated OpenAPI spec
 	openapiData, err := os.ReadFile(openAPIFilePath)
 	if err != nil {
+		slog.Error("Failed to read OpenAPI spec file",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"file_path", openAPIFilePath,
+			"error", err,
+			"duration", time.Since(start),
+		)
 		h.writeError(w, http.StatusInternalServerError, "Failed to read OpenAPI spec")
 		return
 	}
 	if _, err := w.Write(openapiData); err != nil {
+		slog.Error("Failed to write OpenAPI spec response",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"error", err,
+			"duration", time.Since(start),
+		)
 		h.writeError(w, http.StatusInternalServerError, "Failed to write response")
 		return
 	}
+
+	slog.Info("OpenAPI spec served successfully",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"status_code", http.StatusOK,
+		"duration", time.Since(start),
+		"file_size", len(openapiData),
+	)
 }

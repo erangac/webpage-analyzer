@@ -20,8 +20,9 @@ package main
 
 import (
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"webpage-analyzer/internal/analyzer"
@@ -53,6 +54,12 @@ func main() {
 	port := flag.String("port", "8080", "Port to run the server on")
 	flag.Parse()
 
+	// Initialize structured logger
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	// Initialize services.
 	analyzerService := analyzer.NewService()
 
@@ -62,8 +69,11 @@ func main() {
 	// Register all routes.
 	registerRoutes(handler)
 
-	log.Printf("Starting webpage analyzer server on port %s", *port)
-	
+	slog.Info("Starting webpage analyzer server",
+		"port", *port,
+		"static_dir", staticDir,
+	)
+
 	// Log available endpoints
 	endpoints := []struct {
 		name string
@@ -78,7 +88,10 @@ func main() {
 	}
 
 	for _, endpoint := range endpoints {
-		log.Printf("%s available at: http://localhost:%s%s", endpoint.name, *port, endpoint.path)
+		slog.Info("Endpoint available",
+			"name", endpoint.name,
+			"url", "http://localhost:"+*port+endpoint.path,
+		)
 	}
 
 	// Create server with timeout configuration.
@@ -89,7 +102,14 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	slog.Info("Server configuration",
+		"read_timeout", server.ReadTimeout,
+		"write_timeout", server.WriteTimeout,
+		"idle_timeout", server.IdleTimeout,
+	)
+
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatal("Server failed to start:", err)
+		slog.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
 }
