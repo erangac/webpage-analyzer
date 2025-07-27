@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRegisterRoutes(t *testing.T) {
@@ -26,7 +28,7 @@ func TestRegisterRoutes(t *testing.T) {
 				t.Errorf("RegisterRoutes() panicked: %v", r)
 			}
 		}()
-		
+
 		// Since we can't easily test the actual route registration without
 		// setting up the full application, we'll just verify the function exists
 		// and doesn't cause immediate issues
@@ -35,14 +37,8 @@ func TestRegisterRoutes(t *testing.T) {
 
 func TestMainFunction_Constants(t *testing.T) {
 	// Test that constants are properly defined
-	if staticDir == "" {
-		t.Error("staticDir constant should not be empty")
-	}
-
-	// Test that the constant points to a reasonable path
-	if staticDir != "frontend/public" {
-		t.Errorf("staticDir = %s, want 'frontend/public'", staticDir)
-	}
+	assert.NotEmpty(t, staticDir, "staticDir constant should not be empty")
+	assert.Equal(t, "frontend/public", staticDir, "staticDir should be 'frontend/public'")
 }
 
 func TestURLLogging(t *testing.T) {
@@ -62,12 +58,8 @@ func TestURLLogging(t *testing.T) {
 		}
 
 		for _, url := range urls {
-			if url.path == "" {
-				t.Error("URL path should not be empty")
-			}
-			if url.desc == "" {
-				t.Error("URL description should not be empty")
-			}
+			assert.NotEmpty(t, url.path, "URL path should not be empty")
+			assert.NotEmpty(t, url.desc, "URL description should not be empty")
 		}
 	})
 }
@@ -94,9 +86,8 @@ func TestServerStartup(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := server.Shutdown(ctx); err != nil {
-			t.Errorf("Server shutdown error: %v", err)
-		}
+		err := server.Shutdown(ctx)
+		assert.NoError(t, err, "Server should shutdown gracefully")
 	})
 }
 
@@ -114,9 +105,7 @@ func TestStaticFileServing(t *testing.T) {
 		fileServer.ServeHTTP(w, req)
 
 		// Check that we get a response (even if it's 404 for missing files)
-		if w.Code == 0 {
-			t.Error("File server should return a status code")
-		}
+		assert.NotZero(t, w.Code, "File server should return a status code")
 	})
 }
 
@@ -124,17 +113,12 @@ func TestHealthCheckEndpoint(t *testing.T) {
 	// Test the health check endpoint
 	t.Run("HealthCheck_Endpoint", func(t *testing.T) {
 		// Create a test request to the health endpoint
-			req := httptest.NewRequest("GET", "/api/health", nil)
+		req := httptest.NewRequest("GET", "/api/health", nil)
 
-	// Since we can't easily test the actual handler without setting up
-	// the full application, we'll just verify the request is valid
-	if req.Method != "GET" {
-		t.Error("Health check should use GET method")
-	}
-
-	if req.URL.Path != "/api/health" {
-		t.Error("Health check should be at /api/health")
-	}
+		// Since we can't easily test the actual handler without setting up
+		// the full application, we'll just verify the request is valid
+		assert.Equal(t, "GET", req.Method, "Health check should use GET method")
+		assert.Equal(t, "/api/health", req.URL.Path, "Health check should be at /api/health")
 	})
 }
 
@@ -142,16 +126,11 @@ func TestAnalyzeEndpoint(t *testing.T) {
 	// Test the analyze endpoint
 	t.Run("Analyze_Endpoint", func(t *testing.T) {
 		// Create a test request to the analyze endpoint
-			req := httptest.NewRequest("POST", "/api/analyze", nil)
+		req := httptest.NewRequest("POST", "/api/analyze", nil)
 
-	// Verify the endpoint configuration
-	if req.Method != "POST" {
-		t.Error("Analyze endpoint should use POST method")
-	}
-
-	if req.URL.Path != "/api/analyze" {
-		t.Error("Analyze endpoint should be at /api/analyze")
-	}
+		// Verify the endpoint configuration
+		assert.Equal(t, "POST", req.Method, "Analyze endpoint should use POST method")
+		assert.Equal(t, "/api/analyze", req.URL.Path, "Analyze endpoint should be at /api/analyze")
 	})
 }
 
@@ -159,16 +138,11 @@ func TestOpenAPIEndpoint(t *testing.T) {
 	// Test the OpenAPI endpoint
 	t.Run("OpenAPI_Endpoint", func(t *testing.T) {
 		// Create a test request to the OpenAPI endpoint
-			req := httptest.NewRequest("GET", "/api/openapi", nil)
+		req := httptest.NewRequest("GET", "/api/openapi", nil)
 
-	// Verify the endpoint configuration
-	if req.Method != "GET" {
-		t.Error("OpenAPI endpoint should use GET method")
-	}
-
-	if req.URL.Path != "/api/openapi" {
-		t.Error("OpenAPI endpoint should be at /api/openapi")
-	}
+		// Verify the endpoint configuration
+		assert.Equal(t, "GET", req.Method, "OpenAPI endpoint should use GET method")
+		assert.Equal(t, "/api/openapi", req.URL.Path, "OpenAPI endpoint should be at /api/openapi")
 	})
 }
 
@@ -183,21 +157,10 @@ func TestServerConfiguration(t *testing.T) {
 			IdleTimeout:  60 * time.Second,
 		}
 
-		if server.Addr != ":8080" {
-			t.Errorf("Server address = %s, want :8080", server.Addr)
-		}
-
-		if server.ReadTimeout != 15*time.Second {
-			t.Errorf("Read timeout = %v, want 15s", server.ReadTimeout)
-		}
-
-		if server.WriteTimeout != 15*time.Second {
-			t.Errorf("Write timeout = %v, want 15s", server.WriteTimeout)
-		}
-
-		if server.IdleTimeout != 60*time.Second {
-			t.Errorf("Idle timeout = %v, want 60s", server.IdleTimeout)
-		}
+		assert.Equal(t, ":8080", server.Addr, "Server address should be :8080")
+		assert.Equal(t, 15*time.Second, server.ReadTimeout, "Read timeout should be 15s")
+		assert.Equal(t, 15*time.Second, server.WriteTimeout, "Write timeout should be 15s")
+		assert.Equal(t, 60*time.Second, server.IdleTimeout, "Idle timeout should be 60s")
 	})
 }
 
@@ -253,4 +216,4 @@ func TestErrorHandling(t *testing.T) {
 			})
 		}
 	})
-} 
+}
