@@ -148,7 +148,7 @@ This makes it much faster for large pages - instead of checking things one by on
 **Docker is the easiest and most reliable way to run this tool.** It handles all dependencies and ensures consistent behavior across different environments.
 
 ```bash
-# Build the Docker image (this also runs all tests)
+# Build the Docker image (runs linting and tests during build)
 docker build -t webpage-analyzer .
 
 # Run it on port 8990
@@ -171,7 +171,7 @@ go run cmd/webpage-analyzer/main.go
 
 The server will start on port 8080 by default.
 
-> **💡 Pro tip**: If you're just trying out the tool, stick with Docker. It's faster to get started and you won't need to install Go or manage dependencies.
+> **💡 Pro tip**: If you're just trying out the tool, stick with Docker. It's faster to get started, you won't need to install Go or manage dependencies, and the build process automatically runs all linting and tests to ensure code quality.
 
 ## Using the API
 
@@ -254,6 +254,8 @@ go test -v ./internal/parser/...
 go test -v ./internal/client/...
 ```
 
+> **Note**: When building with Docker, all tests are automatically run during the build process to ensure the image only contains code that passes all checks.
+
 ### What's Tested
 
 - **Link categorization**: Ensures internal/external/inaccessible links are correctly identified
@@ -276,6 +278,8 @@ This checks for:
 - Potential bugs
 - Unused imports
 - Security issues
+
+> **Note**: Docker builds automatically run these linting checks to ensure code quality before creating the image.
 
 ### Building
 
