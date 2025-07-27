@@ -1,182 +1,136 @@
 # Webpage Analyzer
 
-A modern Go project for analyzing web pages with comprehensive metadata extraction, featuring a simple frontend and robust backend with parallel processing capabilities.
+A Go-based tool that digs into web pages and pulls out useful information like HTML structure, links, and whether there are login forms. It's built to handle real-world websites efficiently and give you insights that matter.
 
-## 🚀 Features
+## What This Tool Does
 
-- **Comprehensive Webpage Analysis**: Extract HTML version, page title, headings, links, and login forms
-- **Parallel Processing**: Multi-threaded analysis using a worker pool for optimal performance
-- **Robust Error Handling**: Detailed error messages for various failure scenarios
-- **Simple Frontend**: Static HTML/CSS/JS interface served by the Go backend
-- **Docker Support**: Easy deployment with containerization
-- **Dynamic OpenAPI Documentation**: Auto-generated API specification using Swaggo with interactive documentation
-- **Comprehensive Unit Tests**: Extensive test coverage with automated testing in Docker builds
+Think of it as a smart web inspector that can tell you:
+- What HTML version a page uses
+- The page title and heading structure
+- How many links point to the same site vs external sites
+- Whether there's a login form on the page
+- How long the analysis took
 
-## 📁 Project Structure
+It's particularly useful for web developers, SEO specialists, or anyone who needs to understand a website's structure quickly.
+
+## Key Features
+
+- **Smart Link Analysis**: Automatically categorizes links as internal, external, or broken
+- **Login Form Detection**: Uses multiple strategies to spot login forms accurately
+- **Parallel Processing**: Analyzes different parts of the page simultaneously for speed
+- **Robust Error Handling**: Gives you clear, helpful error messages when things go wrong
+- **Simple Web Interface**: A clean frontend to test the tool
+- **Docker Ready**: Easy to deploy and run anywhere
+
+## How It Works
+
+### Link Categorization Logic
+
+The tool uses a sophisticated approach to categorize links:
+
+**Internal Links** (same website):
+- Relative URLs like `/about`, `/contact`
+- Absolute URLs pointing to the same domain (e.g., `https://example.com/page` on example.com)
+- Protocol-relative URLs like `//example.com/cdn` (inherits the current page's protocol)
+- Special protocols like `mailto:` and `tel:` (treated as internal)
+
+**External Links** (different websites):
+- URLs pointing to different domains
+- Special protocols like `ftp://`
+
+**Inaccessible Links** (broken or problematic):
+- Empty href attributes (`href=""`)
+- JavaScript links (`href="javascript:void(0)"`)
+- Malformed URLs that can't be parsed
+
+The tool uses Go's `net/url` package for robust URL parsing and domain comparison, handling edge cases like protocol-relative URLs and internationalized domain names.
+
+### Login Form Detection
+
+Instead of just looking for the word "login", the tool uses a multi-layered approach:
+
+1. **Password Field Required**: First checks if there's a password input field (the strongest indicator)
+2. **Form Attributes**: Looks for login-related patterns in form action, id, name, or class attributes
+3. **Authentication Attributes**: Checks for autocomplete attributes like "username" or "current-password"
+4. **Contextual Text**: Searches for phrases like "welcome back", "sign in to", "enter your credentials"
+5. **Submit Button Text**: Looks for buttons with text like "login", "continue", "sign in"
+6. **Input Field Names**: Checks for input names like "username", "user_id", "email"
+
+This approach significantly reduces false positives (like contact forms with username fields) while catching modern login patterns that don't use obvious keywords.
+
+### Architecture Overview
+
+The code is organized into focused packages that each handle a specific responsibility:
 
 ```
-webpage-analyzer/
-├── cmd/
-│   └── webpage-analyzer/      # Main application entrypoint (main.go)
-├── internal/                  # Private application code
-│   ├── analyzer/              # Core webpage analysis logic
-│   │   ├── html_parser.go     # HTML parsing and extraction
-│   │   ├── http_client.go     # HTTP client with error handling
-│   │   ├── service.go         # Main analysis service
-│   │   ├── types.go           # Data structures and interfaces
-│   │   └── worker_pool.go     # Parallel processing implementation
-│   └── http/                  # HTTP handlers and server setup
-│       └── handlers.go        # API endpoint handlers
-├── frontend/
-│   └── public/                # Static HTML, CSS, JS files (no build step)
-├── api/                       # Generated API documentation (Swaggo output at runtime)
-├── scripts/                   # Helper scripts
-│   ├── lint.sh               # Code quality checks
-│   └── test.sh               # Unit tests and coverage
-├── Dockerfile                 # Multi-stage build for backend and static frontend
-├── go.mod, go.sum             # Go module files
-└── README.md                  # Project documentation
+internal/
+├── analyzer/     # Main orchestration - coordinates everything
+├── parser/       # HTML parsing and analysis logic
+├── client/       # HTTP client for fetching web pages
+├── worker/       # Parallel processing with worker pools
+└── http/         # API endpoints and request handling
 ```
 
-## 🏃‍♂️ Quick Start
+**Why This Structure?**
+- **Single Responsibility**: Each package has one clear job
+- **Easy Testing**: You can test each component in isolation
+- **Maintainable**: Changes in one area don't break others
+- **Reusable**: Components can be used in other projects
 
-### Using Docker (Recommended)
+**Parallel Processing**
+The tool uses a worker pool to analyze different parts of a webpage simultaneously:
+- HTML version detection
+- Page title extraction
+- Heading analysis
+- Link categorization
+- Login form detection
 
-Build and run with Docker:
+This makes it much faster for large pages - instead of checking things one by one, it does them all at once.
+
+## Getting Started
+
+### Quick Start with Docker
+
+The easiest way to get running:
 
 ```bash
-# Build the Docker image (includes running all tests)
+# Build the Docker image (this also runs all tests)
 docker build -t webpage-analyzer .
 
-# Run the application
+# Run it on port 8990
 docker run -p 8990:8990 webpage-analyzer
 ```
 
-The application (API and static frontend) will be available at `http://localhost:8990`.
+Then open your browser to `http://localhost:8990` to see the web interface.
 
 ### Manual Setup
 
+If you prefer to run it directly:
+
 ```bash
-# Install dependencies
+# Get the dependencies
 go mod download
 
 # Run the application
 go run cmd/webpage-analyzer/main.go
 ```
 
-## 🧪 Testing
+The server will start on port 8080 by default.
 
-### Running Tests Locally
+## Using the API
 
-```bash
-# Run all tests with coverage
-./scripts/test.sh
+### Basic Usage
 
-# Run specific test packages
-go test -v ./internal/analyzer/...
-go test -v ./internal/http/...
-go test -v ./cmd/webpage-analyzer/...
+Analyze a webpage with a simple POST request:
 
-# Run tests with coverage
-go test -cover ./...
-
-# Run tests with race detection
-go test -race ./...
-```
-
-### Test Coverage
-
-The project includes comprehensive unit tests covering:
-
-- **HTML Parser**: Tests for HTML version detection, title extraction, headings counting, link analysis, and login form detection
-- **HTTP Client**: Tests for various HTTP scenarios including success, errors, timeouts, and redirects
-- **Worker Pool**: Tests for concurrent task execution, error handling, and graceful shutdown
-- **HTTP Handlers**: Tests for all API endpoints with mock services
-- **Service Layer**: Tests for the main analysis service with mocked dependencies
-
-### Docker Integration
-
-Tests are automatically run during Docker builds:
-
-- **Unit tests** run before building the application
-- **Coverage reports** are generated and displayed
-- **Build fails** if any tests fail
-- **Code quality checks** (go vet, gofmt) are included
-
-### Test Structure
-
-```
-├── internal/analyzer/
-│   ├── html_parser_test.go    # HTML parsing tests
-│   ├── http_client_test.go    # HTTP client tests
-│   ├── service_test.go        # Service layer tests
-│   └── worker_pool_test.go    # Worker pool tests
-├── internal/http/
-│   └── handlers_test.go       # HTTP handler tests
-└── cmd/webpage-analyzer/
-    └── main_test.go           # Main application tests
-```
-
-## 🌐 API Overview
-
-The Webpage Analyzer API provides endpoints for analyzing webpages and extracting comprehensive metadata including:
-
-- **HTML Version**: What HTML version the document uses
-- **Page Title**: The title of the webpage
-- **Headings**: Count of headings by level (h1, h2, h3, etc.)
-- **Links**: Internal, external, and inaccessible link counts
-- **Login Forms**: Detection of login forms on the page
-- **Performance Metrics**: Processing time for analysis
-
-### 🚀 Parallel Processing
-
-The analyzer uses **multi-threaded processing** to handle large webpages efficiently:
-
-- **5 concurrent tasks** run in parallel
-- **Thread-safe operations** with proper synchronization
-- **Significant performance improvement** for large pages
-- **Processing time tracking** included in results
-
-### Base URLs
-- **Development**: `http://localhost:8990`
-- **Production**: `https://api.webpage-analyzer.com`
-
-## 📡 API Endpoints
-
-### System Endpoints
-- `GET /api/health` - Health check
-- `GET /api/status` - Service status
-- `GET /api/openapi` - OpenAPI specification (YAML)
-
-### Analysis Endpoints
-- `POST /api/analyze` - Analyze a webpage
-
-### Documentation Endpoints
-- `GET /docs` - Interactive API documentation (Swagger UI)
-
-## 🔧 Using the API
-
-### Health Check
-```bash
-curl http://localhost:8990/api/health
-```
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "webpage-analyzer"
-}
-```
-
-### Analyze Webpage
 ```bash
 curl -X POST http://localhost:8990/api/analyze \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com"}'
 ```
 
-**Response Example:**
+### What You Get Back
+
 ```json
 {
   "url": "https://example.com",
@@ -189,15 +143,25 @@ curl -X POST http://localhost:8990/api/analyze \
   },
   "internal_links": 15,
   "external_links": 8,
-  "inaccessible_links": 0,
+  "inaccessible_links": 2,
   "has_login_form": false,
   "analyzed_at": "2024-01-15T10:30:00Z",
   "processing_time": "150ms"
 }
 ```
 
-### Error Response Example
-If the URL is not reachable:
+### Understanding the Results
+
+- **internal_links**: Links pointing to the same website
+- **external_links**: Links pointing to other websites
+- **inaccessible_links**: Broken or problematic links
+- **has_login_form**: Whether a login form was detected
+- **processing_time**: How long the analysis took
+
+### Error Handling
+
+If something goes wrong, you'll get a detailed error message:
+
 ```json
 {
   "status_code": 404,
@@ -206,139 +170,117 @@ If the URL is not reachable:
 }
 ```
 
-### Get Service Status
+## Testing
+
+### Run All Tests
+
 ```bash
-curl http://localhost:8990/api/status
+# Run everything with coverage
+./scripts/test.sh
+
+# Or run specific packages
+go test -v ./internal/analyzer/...
+go test -v ./internal/parser/...
+go test -v ./internal/client/...
 ```
 
-**Response:**
-```json
-{
-  "status": "Service is running and ready for parallel webpage analysis with worker pool"
-}
-```
+### What's Tested
 
-## 🔍 Analysis Features
+- **Link categorization**: Ensures internal/external/inaccessible links are correctly identified
+- **Login form detection**: Tests various login form patterns and edge cases
+- **HTTP client**: Handles network errors, timeouts, and different response types
+- **Parallel processing**: Verifies worker pools handle tasks correctly
+- **API endpoints**: Tests all HTTP endpoints with proper error handling
 
-### What the Analyzer Extracts:
-
-1. **HTML Version**: Detects DOCTYPE or assumes HTML5
-2. **Page Title**: Extracts content from `<title>` tag
-3. **Headings**: Counts h1, h2, h3, h4, h5, h6 elements
-4. **Links**: 
-   - Internal links (relative URLs starting with `/` or `#`)
-   - External links (absolute URLs starting with `http`)
-   - Inaccessible links (links without href attributes)
-5. **Login Forms**: Detects forms containing login-related keywords
-6. **Processing Time**: Time taken to complete the analysis
-
-### Parallel Processing Architecture:
-
-The analyzer runs **5 concurrent tasks**:
-
-1. **HTML Version Detection** - Independent task
-2. **Page Title Extraction** - Independent task  
-3. **Heading Analysis** - Thread-safe map operations
-4. **Link Analysis** - Thread-safe counter operations
-5. **Login Form Detection** - Independent boolean result
-
-### Performance Benefits:
-
-- **Faster processing** for large webpages
-- **Better resource utilization** with concurrent tasks
-- **Scalable architecture** that can handle complex pages
-- **Processing time tracking** for performance monitoring
-
-### Error Handling
-
-The API provides detailed error messages when:
-- URL is not reachable (with HTTP status code)
-- Network errors occur
-- HTML parsing fails
-- Invalid URLs are provided
-
-## 📚 Interactive API Documentation
-
-### 🎯 Quick Access
-Once your application is running, visit: **http://localhost:8990/docs**
-
-This will open the interactive Swagger UI documentation where you can:
-- Browse all available endpoints
-- See request/response schemas
-- Test API calls directly from the browser
-- View examples and descriptions
-
-### Alternative Documentation Tools
-
-You can also view the API documentation using external tools:
-
-1. **Using Swagger UI**: Upload `api/swagger.yaml` to [Swagger Editor](https://editor.swagger.io/)
-2. **Using Redoc**: Upload `api/swagger.yaml` to [Redoc](https://redocly.github.io/redoc/)
-3. **Local Development**: Use tools like `swagger-ui` or `redoc` to serve the documentation locally
-
-## 🎨 Frontend
-
-The frontend is a simple static site (HTML/CSS/JS) located in `frontend/public/` and is served by the Go backend. No Node.js or npm is required.
-
-## 🛠️ Development
+## Development
 
 ### Code Quality
-Run the linting script to check code quality:
+
 ```bash
+# Run linting and code quality checks
 ./scripts/lint.sh
 ```
 
+This checks for:
+- Code formatting
+- Potential bugs
+- Unused imports
+- Security issues
+
 ### Building
+
 ```bash
-# Build the application
+# Build the binary
 go build -o webpage-analyzer cmd/webpage-analyzer/main.go
 
 # Run tests
 go test ./...
 ```
 
-## 📋 Dynamic OpenAPI Generation
+## API Documentation
 
-The project uses **Swaggo** to automatically generate the OpenAPI specification from Go code annotations:
+Once the server is running, visit `http://localhost:8990/docs` for interactive API documentation. You can test endpoints directly from your browser.
 
-### How it works:
-- **Code Annotations**: Swaggo reads special comments in Go code to generate documentation
-- **Build-time Generation**: The OpenAPI spec is generated during Docker build
-- **Always Up-to-date**: Documentation automatically stays in sync with code changes
+## Recent Improvements
 
-### Generated Files:
-- `api/swagger.yaml` - OpenAPI specification in YAML format
-- `api/swagger.json` - OpenAPI specification in JSON format  
-- `api/docs.go` - Go code with embedded documentation
+### Link Analysis Enhancements
+- **Robust URL parsing**: Uses Go's `net/url` package for reliable domain comparison
+- **Protocol-relative support**: Correctly handles URLs starting with `//`
+- **Special protocol handling**: Properly categorizes `mailto:`, `tel:`, and `ftp://` links
+- **Internationalized domains**: Handles non-ASCII domain names correctly
 
-### Benefits:
-- **No Manual Maintenance**: Documentation updates automatically with code changes
-- **Type Safety**: Generated spec matches actual Go structs and interfaces
-- **Consistency**: API documentation is always synchronized with implementation
+### Login Form Detection Improvements
+- **Multi-layered approach**: Requires password field + additional indicators
+- **Modern pattern support**: Detects contemporary login forms without obvious keywords
+- **Reduced false positives**: Contact forms with username fields are no longer misidentified
+- **Context-aware**: Looks at surrounding text and form attributes
 
-The OpenAPI specification can be used to generate:
-- Client SDKs (JavaScript, Python, Go, etc.)
-- Server stubs
-- Type definitions
-- Documentation
+### Architecture Refinements
+- **Package reorganization**: Separated concerns into focused packages
+- **Better testability**: Each component can be tested independently
+- **Cleaner interfaces**: Well-defined contracts between packages
+- **Improved maintainability**: Smaller, focused files that are easier to understand
 
-## 🔄 Versioning
+## Performance Characteristics
 
-This API follows semantic versioning. The current version is `1.0.0`.
+- **Parallel processing**: 5 concurrent tasks for faster analysis
+- **Efficient memory usage**: Streams large responses without loading everything into memory
+- **Timeout handling**: 30-second timeout prevents hanging on slow sites
+- **Connection pooling**: Reuses HTTP connections for better performance
 
-## 🚧 Future Enhancements
+## Troubleshooting
 
-- Enhanced link accessibility checking
-- More sophisticated login form detection
-- Meta tag analysis
-- Image analysis
-- Performance metrics dashboard
-- Authentication and authorization
-- Rate limiting
-- Webhook support
-- Batch processing
-- Real-time analysis streaming
+### Common Issues
 
-## 📄 License
+**"Invalid URL format"**
+- Make sure the URL includes the protocol (http:// or https://)
+- Check for typos in the domain name
 
-This project is open source and available under the MIT License. 
+**"Request timeout"**
+- The target website might be slow or down
+- Try again in a few minutes
+
+**"Failed to parse HTML"**
+- The page might not be valid HTML
+- Some sites return JSON or other formats instead of HTML
+
+### Debug Mode
+
+For development, you can see detailed logs by setting the log level:
+
+```bash
+export LOG_LEVEL=debug
+go run cmd/webpage-analyzer/main.go
+```
+
+## Contributing
+
+This project follows standard Go conventions:
+- Use `go fmt` for code formatting
+- Write tests for new features
+- Keep functions focused and small
+- Add comments for complex logic
+
+## License
+
+MIT License - feel free to use this in your own projects. 
