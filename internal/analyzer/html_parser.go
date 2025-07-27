@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -168,18 +169,18 @@ func (p *htmlParser) ExtractLinks(doc interface{}, baseURL string) (internal, ex
 		return 0, 0, 0
 	}
 
-	p.analyzeLinks(htmlDoc, &internal, &external, &inaccessible)
+	p.analyzeLinks(htmlDoc, baseURL, &internal, &external, &inaccessible)
 	return internal, external, inaccessible
 }
 
 // analyzeLinks recursively analyzes link elements.
-func (p *htmlParser) analyzeLinks(n *html.Node, internal, external, inaccessible *int) {
+func (p *htmlParser) analyzeLinks(n *html.Node, baseURL string, internal, external, inaccessible *int) {
 	if p.isLinkElement(n) {
-		p.processLink(n, internal, external, inaccessible)
+		p.processLink(n, baseURL, internal, external, inaccessible)
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		p.analyzeLinks(c, internal, external, inaccessible)
+		p.analyzeLinks(c, baseURL, internal, external, inaccessible)
 	}
 }
 
@@ -189,7 +190,7 @@ func (p *htmlParser) isLinkElement(n *html.Node) bool {
 }
 
 // processLink processes a single link element.
-func (p *htmlParser) processLink(n *html.Node, internal, external, inaccessible *int) {
+func (p *htmlParser) processLink(n *html.Node, baseURL string, internal, external, inaccessible *int) {
 	href := p.getHrefAttribute(n)
 
 	if href == "" {
@@ -197,9 +198,12 @@ func (p *htmlParser) processLink(n *html.Node, internal, external, inaccessible 
 		return
 	}
 
-	if p.isValidLink(href) {
-		p.categorizeLink(href, internal, external)
+	if !p.isValidLink(href) {
+		*inaccessible++
+		return
 	}
+
+	p.categorizeLink(href, baseURL, internal, external)
 }
 
 // getHrefAttribute extracts the href attribute from a link.
@@ -217,19 +221,67 @@ func (p *htmlParser) isValidLink(href string) bool {
 	return href != "" && !strings.HasPrefix(strings.ToLower(href), "javascript:")
 }
 
-// categorizeLink categorizes a link as internal or external.
-func (p *htmlParser) categorizeLink(href string, internal, external *int) {
-	switch {
-	case strings.HasPrefix(strings.ToLower(href), "http"):
-		*external++
-	case strings.HasPrefix(href, "/") || strings.HasPrefix(href, "#"):
+// categorizeLink categorizes a link as internal or external based on baseURL.
+func (p *htmlParser) categorizeLink(href string, baseURL string, internal, external *int) {
+	// Handle relative URLs (always internal)
+	if !p.isAbsoluteURL(href) {
 		*internal++
-	case strings.HasPrefix(strings.ToLower(href), "mailto:") || strings.HasPrefix(strings.ToLower(href), "tel:"):
-		*external++
-	default:
-		// Relative links without leading slash.
-		*internal++
+		return
 	}
+
+	// Handle special protocols
+	if p.isSpecialProtocol(href) {
+		*external++
+		return
+	}
+
+	// Compare domains for absolute URLs
+	if p.isSameDomain(href, baseURL) {
+		*internal++
+	} else {
+		*external++
+	}
+}
+
+// isAbsoluteURL checks if a URL is absolute (has scheme).
+func (p *htmlParser) isAbsoluteURL(href string) bool {
+	return strings.HasPrefix(strings.ToLower(href), "http://") ||
+		strings.HasPrefix(strings.ToLower(href), "https://") ||
+		strings.HasPrefix(strings.ToLower(href), "ftp://") ||
+		strings.HasPrefix(href, "//") // Protocol-relative
+}
+
+// isSpecialProtocol checks if a URL uses a special protocol.
+func (p *htmlParser) isSpecialProtocol(href string) bool {
+	hrefLower := strings.ToLower(href)
+	return strings.HasPrefix(hrefLower, "mailto:") ||
+		strings.HasPrefix(hrefLower, "tel:") ||
+		strings.HasPrefix(hrefLower, "ftp://")
+}
+
+// isSameDomain checks if two URLs belong to the same domain.
+func (p *htmlParser) isSameDomain(href, baseURL string) bool {
+	// Handle protocol-relative URLs by adding the base scheme
+	if strings.HasPrefix(href, "//") {
+		baseURLParsed, err := url.Parse(baseURL)
+		if err != nil {
+			return false
+		}
+		href = baseURLParsed.Scheme + ":" + href
+	}
+
+	hrefURL, err := url.Parse(href)
+	if err != nil {
+		return false
+	}
+
+	baseURLParsed, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+
+	// Compare hostnames (case-insensitive)
+	return strings.EqualFold(hrefURL.Hostname(), baseURLParsed.Hostname())
 }
 
 // ExtractLoginForm checks if the page contains a login form.

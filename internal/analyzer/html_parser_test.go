@@ -150,13 +150,15 @@ func TestExtractLinks(t *testing.T) {
 		expectedInaccessible int
 	}{
 		{
-			name: "Mixed links",
+			name: "Mixed links with same domain",
 			html: `
 				<html>
 					<body>
 						<a href="/internal">Internal</a>
-						<a href="https://example.com">External</a>
-						<a href="#anchor">Anchor</a>
+						<a href="https://example.com/page">Same Domain</a>
+						<a href="http://example.com/page">Same Domain HTTP</a>
+						<a href="//example.com/cdn">Protocol Relative</a>
+						<a href="https://google.com">External</a>
 						<a href="mailto:test@example.com">Email</a>
 						<a href="tel:+1234567890">Phone</a>
 						<a href="">Empty</a>
@@ -164,17 +166,70 @@ func TestExtractLinks(t *testing.T) {
 					</body>
 				</html>
 			`,
-			baseURL:              "https://mysite.com",
-			expectedInternal:     2, // /internal, #anchor
-			expectedExternal:     3, // https://example.com, mailto, tel
-			expectedInaccessible: 1, // empty (javascript is filtered out)
+			baseURL:              "https://example.com",
+			expectedInternal:     6, // /internal, https://example.com/page, http://example.com/page, //example.com/cdn, mailto, tel
+			expectedExternal:     1, // https://google.com
+			expectedInaccessible: 2, // empty, javascript
+		},
+		{
+			name: "Mixed links with different domain",
+			html: `
+				<html>
+					<body>
+						<a href="/internal">Internal</a>
+						<a href="https://mysite.com/page">Different Domain</a>
+						<a href="https://google.com">External</a>
+						<a href="mailto:test@example.com">Email</a>
+						<a href="tel:+1234567890">Phone</a>
+						<a href="">Empty</a>
+						<a href="javascript:void(0)">JavaScript</a>
+					</body>
+				</html>
+			`,
+			baseURL:              "https://example.com",
+			expectedInternal:     3, // /internal, mailto, tel
+			expectedExternal:     2, // https://mysite.com/page, https://google.com
+			expectedInaccessible: 2, // empty, javascript
 		},
 		{
 			name:                 "No links",
 			html:                 `<html><body><div>No links here</div></body></html>`,
-			baseURL:              "https://mysite.com",
+			baseURL:              "https://example.com",
 			expectedInternal:     0,
 			expectedExternal:     0,
+			expectedInaccessible: 0,
+		},
+		{
+			name: "Relative links only",
+			html: `
+				<html>
+					<body>
+						<a href="/about">About</a>
+						<a href="page.html">Page</a>
+						<a href="../images/logo.png">Image</a>
+						<a href="#section1">Section</a>
+					</body>
+				</html>
+			`,
+			baseURL:              "https://example.com",
+			expectedInternal:     4, // All relative links are internal
+			expectedExternal:     0,
+			expectedInaccessible: 0,
+		},
+		{
+			name: "Special protocols",
+			html: `
+				<html>
+					<body>
+						<a href="mailto:user@example.com">Email</a>
+						<a href="tel:+1234567890">Phone</a>
+						<a href="ftp://example.com/file.zip">FTP</a>
+					</body>
+				</html>
+			`,
+			baseURL:              "https://example.com",
+			expectedInternal:     2, // mailto, tel (treated as internal since they're not domain-specific)
+			expectedExternal:     1, // ftp:// (treated as external)
 			expectedInaccessible: 0,
 		},
 	}

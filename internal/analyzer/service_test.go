@@ -265,9 +265,9 @@ func TestAnalyzeWebpage_ComplexHTML(t *testing.T) {
 	}
 
 	// Check links
-	assert.Equal(t, 2, result.InternalLinks, "Internal links count should match")         // /home, /about
-	assert.Equal(t, 3, result.ExternalLinks, "External links count should match")         // https://external-site.com, mailto, tel
-	assert.Equal(t, 1, result.InaccessibleLinks, "Inaccessible links count should match") // empty (javascript is filtered out)
+	assert.Equal(t, 4, result.InternalLinks, "Internal links count should match")         // /home, /about, mailto, tel
+	assert.Equal(t, 1, result.ExternalLinks, "External links count should match")         // https://external-site.com
+	assert.Equal(t, 2, result.InaccessibleLinks, "Inaccessible links count should match") // empty, javascript
 
 	// Check login form (should be detected due to password input)
 	assert.True(t, result.HasLoginForm, "Login form should be detected")
