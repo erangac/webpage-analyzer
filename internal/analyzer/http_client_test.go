@@ -4,18 +4,17 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
 )
 
 func TestNewHTTPClient(t *testing.T) {
 	client := NewHTTPClient()
-	if client == nil {
-		t.Fatal("NewHTTPClient() returned nil")
-	}
+	require.NotNil(t, client, "NewHTTPClient() should not return nil")
 }
 
 func TestHTTPClient_FetchWebpage_Success(t *testing.T) {
@@ -31,27 +30,14 @@ func TestHTTPClient_FetchWebpage_Success(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, server.URL)
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() returned error: %v", err)
-	}
-
-	if statusCode != http.StatusOK {
-		t.Errorf("FetchWebpage() status code = %d, want %d", statusCode, http.StatusOK)
-	}
-
-	if len(content) == 0 {
-		t.Fatal("FetchWebpage() returned empty content")
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error")
+	assert.Equal(t, http.StatusOK, statusCode, "Status code should be OK")
+	assert.NotEmpty(t, content, "FetchWebpage() should not return empty content")
 
 	// Check if the HTML contains expected content
 	htmlStr := string(content)
-	if !strings.Contains(htmlStr, "Test Page") {
-		t.Errorf("FetchWebpage() response does not contain expected title: %s", htmlStr)
-	}
-
-	if !strings.Contains(htmlStr, "Hello World") {
-		t.Errorf("FetchWebpage() response does not contain expected body: %s", htmlStr)
-	}
+	assert.Contains(t, htmlStr, "Test Page", "Response should contain expected title")
+	assert.Contains(t, htmlStr, "Hello World", "Response should contain expected body")
 }
 
 func TestHTTPClient_FetchWebpage_404Error(t *testing.T) {
@@ -66,17 +52,9 @@ func TestHTTPClient_FetchWebpage_404Error(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, server.URL+"/nonexistent")
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() returned error: %v", err)
-	}
-
-	if statusCode != http.StatusNotFound {
-		t.Errorf("FetchWebpage() status code = %d, want %d", statusCode, http.StatusNotFound)
-	}
-
-	if len(content) == 0 {
-		t.Error("FetchWebpage() should return content even for 404")
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error for 404")
+	assert.Equal(t, http.StatusNotFound, statusCode, "Status code should be 404")
+	assert.NotEmpty(t, content, "FetchWebpage() should return content even for 404")
 }
 
 func TestHTTPClient_FetchWebpage_500Error(t *testing.T) {
@@ -91,17 +69,9 @@ func TestHTTPClient_FetchWebpage_500Error(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, server.URL)
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() returned error: %v", err)
-	}
-
-	if statusCode != http.StatusInternalServerError {
-		t.Errorf("FetchWebpage() status code = %d, want %d", statusCode, http.StatusInternalServerError)
-	}
-
-	if len(content) == 0 {
-		t.Error("FetchWebpage() should return content even for 500")
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error for 500")
+	assert.Equal(t, http.StatusInternalServerError, statusCode, "Status code should be 500")
+	assert.NotEmpty(t, content, "FetchWebpage() should return content even for 500")
 }
 
 func TestHTTPClient_FetchWebpage_InvalidURL(t *testing.T) {
@@ -109,17 +79,9 @@ func TestHTTPClient_FetchWebpage_InvalidURL(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, "invalid-url")
 
-	if err == nil {
-		t.Fatal("FetchWebpage() should return error for invalid URL")
-	}
-
-	if content != nil {
-		t.Error("FetchWebpage() should return nil content for invalid URL")
-	}
-
-	if statusCode != 400 {
-		t.Errorf("FetchWebpage() status code = %d, want 400", statusCode)
-	}
+	require.Error(t, err, "FetchWebpage() should return error for invalid URL")
+	assert.Nil(t, content, "FetchWebpage() should return nil content for invalid URL")
+	assert.Equal(t, 400, statusCode, "Status code should be 400 for invalid URL")
 }
 
 func TestHTTPClient_FetchWebpage_EmptyURL(t *testing.T) {
@@ -127,17 +89,9 @@ func TestHTTPClient_FetchWebpage_EmptyURL(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, "")
 
-	if err == nil {
-		t.Fatal("FetchWebpage() should return error for empty URL")
-	}
-
-	if content != nil {
-		t.Error("FetchWebpage() should return nil content for empty URL")
-	}
-
-	if statusCode != 400 {
-		t.Errorf("FetchWebpage() status code = %d, want 400", statusCode)
-	}
+	require.Error(t, err, "FetchWebpage() should return error for empty URL")
+	assert.Nil(t, content, "FetchWebpage() should return nil content for empty URL")
+	assert.Equal(t, 400, statusCode, "Status code should be 400 for empty URL")
 }
 
 func TestHTTPClient_FetchWebpage_Timeout(t *testing.T) {
@@ -159,17 +113,9 @@ func TestHTTPClient_FetchWebpage_Timeout(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := testClient.FetchWebpage(ctx, server.URL)
 
-	if err == nil {
-		t.Fatal("FetchWebpage() should return error for timeout")
-	}
-
-	if content != nil {
-		t.Error("FetchWebpage() should return nil content for timeout")
-	}
-
-	if statusCode != 408 {
-		t.Errorf("FetchWebpage() status code = %d, want 408", statusCode)
-	}
+	require.Error(t, err, "FetchWebpage() should return error for timeout")
+	assert.Nil(t, content, "FetchWebpage() should return nil content for timeout")
+	assert.Equal(t, 408, statusCode, "Status code should be 408 for timeout")
 }
 
 func TestHTTPClient_FetchWebpage_NonHTMLContent(t *testing.T) {
@@ -185,23 +131,13 @@ func TestHTTPClient_FetchWebpage_NonHTMLContent(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, server.URL)
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() should not return error for non-HTML content: %v", err)
-	}
-
-	if statusCode != http.StatusOK {
-		t.Errorf("FetchWebpage() status code = %d, want %d", statusCode, http.StatusOK)
-	}
-
-	if len(content) == 0 {
-		t.Fatal("FetchWebpage() should return content even if it's not HTML")
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error for non-HTML content")
+	assert.Equal(t, http.StatusOK, statusCode, "Status code should be OK")
+	assert.NotEmpty(t, content, "FetchWebpage() should return content even if it's not HTML")
 
 	// Should still return the content even if it's not HTML
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "This is JSON, not HTML") {
-		t.Errorf("FetchWebpage() should return the content: %s", contentStr)
-	}
+	assert.Contains(t, contentStr, "This is JSON, not HTML", "Should return the content regardless of type")
 }
 
 func TestHTTPClient_FetchWebpage_LargeResponse(t *testing.T) {
@@ -223,26 +159,13 @@ func TestHTTPClient_FetchWebpage_LargeResponse(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, server.URL)
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() returned error for large response: %v", err)
-	}
-
-	if statusCode != http.StatusOK {
-		t.Errorf("FetchWebpage() status code = %d, want %d", statusCode, http.StatusOK)
-	}
-
-	if len(content) == 0 {
-		t.Fatal("FetchWebpage() returned empty content for large response")
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error for large response")
+	assert.Equal(t, http.StatusOK, statusCode, "Status code should be OK")
+	assert.NotEmpty(t, content, "FetchWebpage() should not return empty content for large response")
 
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "Large Page") {
-		t.Error("FetchWebpage() should contain the title from large response")
-	}
-
-	if len(contentStr) < 1000 {
-		t.Error("FetchWebpage() should return the full large response")
-	}
+	assert.Contains(t, contentStr, "Large Page", "Should contain the title from large response")
+	assert.Greater(t, len(contentStr), 1000, "Should return the full large response")
 }
 
 func TestHTTPClient_FetchWebpage_Redirect(t *testing.T) {
@@ -266,22 +189,12 @@ func TestHTTPClient_FetchWebpage_Redirect(t *testing.T) {
 	ctx := context.Background()
 	content, statusCode, err := client.FetchWebpage(ctx, server.URL+"/redirect")
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() returned error for redirect: %v", err)
-	}
-
-	if statusCode != http.StatusOK {
-		t.Errorf("FetchWebpage() status code = %d, want %d", statusCode, http.StatusOK)
-	}
-
-	if len(content) == 0 {
-		t.Fatal("FetchWebpage() returned empty content for redirect")
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error for redirect")
+	assert.Equal(t, http.StatusOK, statusCode, "Status code should be OK after redirect")
+	assert.NotEmpty(t, content, "FetchWebpage() should not return empty content for redirect")
 
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "Final Page") {
-		t.Error("FetchWebpage() should follow redirect and return final page content")
-	}
+	assert.Contains(t, contentStr, "Final Page", "Should follow redirect and return final page content")
 }
 
 func TestHTTPClient_FetchWebpage_UserAgent(t *testing.T) {
@@ -298,17 +211,9 @@ func TestHTTPClient_FetchWebpage_UserAgent(t *testing.T) {
 	ctx := context.Background()
 	_, _, err := client.FetchWebpage(ctx, server.URL)
 
-	if err != nil {
-		t.Fatalf("FetchWebpage() returned error: %v", err)
-	}
-
-	if userAgent == "" {
-		t.Error("FetchWebpage() should set User-Agent header")
-	}
-
-	if !strings.Contains(userAgent, "WebpageAnalyzer") {
-		t.Errorf("User-Agent should contain 'WebpageAnalyzer', got: %s", userAgent)
-	}
+	require.NoError(t, err, "FetchWebpage() should not return error")
+	assert.NotEmpty(t, userAgent, "FetchWebpage() should set User-Agent header")
+	assert.Contains(t, userAgent, "WebpageAnalyzer", "User-Agent should contain 'WebpageAnalyzer'")
 }
 
 func TestHTTPClient_ParseHTML_Success(t *testing.T) {
@@ -317,23 +222,13 @@ func TestHTTPClient_ParseHTML_Success(t *testing.T) {
 
 	doc, err := client.ParseHTML(htmlContent)
 
-	if err != nil {
-		t.Fatalf("ParseHTML() returned error: %v", err)
-	}
-
-	if doc == nil {
-		t.Fatal("ParseHTML() returned nil document")
-	}
+	require.NoError(t, err, "ParseHTML() should not return error")
+	require.NotNil(t, doc, "ParseHTML() should not return nil document")
 
 	// Check if it's a valid HTML node
 	htmlNode, ok := doc.(*html.Node)
-	if !ok {
-		t.Fatal("ParseHTML() should return *html.Node")
-	}
-
-	if htmlNode.Type != html.DocumentNode {
-		t.Errorf("ParseHTML() returned node type %d, want %d", htmlNode.Type, html.DocumentNode)
-	}
+	require.True(t, ok, "ParseHTML() should return *html.Node")
+	assert.Equal(t, html.DocumentNode, htmlNode.Type, "Should return document node type")
 }
 
 func TestHTTPClient_ParseHTML_InvalidHTML(t *testing.T) {
@@ -342,21 +237,16 @@ func TestHTTPClient_ParseHTML_InvalidHTML(t *testing.T) {
 
 	doc, err := client.ParseHTML(invalidHTML)
 
-	if err != nil {
-		t.Fatalf("ParseHTML() should handle invalid HTML gracefully: %v", err)
-	}
-
-	if doc == nil {
-		t.Fatal("ParseHTML() should return document even for invalid HTML")
-	}
+	require.NoError(t, err, "ParseHTML() should handle invalid HTML gracefully")
+	assert.NotNil(t, doc, "ParseHTML() should return document even for invalid HTML")
 }
 
 func TestHTTPClient_FetchWebpage_ContentTypeDetection(t *testing.T) {
 	tests := []struct {
-		name           string
-		contentType    string
-		body           string
-		shouldSucceed  bool
+		name          string
+		contentType   string
+		body          string
+		shouldSucceed bool
 	}{
 		{
 			name:          "HTML content type",
@@ -399,21 +289,13 @@ func TestHTTPClient_FetchWebpage_ContentTypeDetection(t *testing.T) {
 			ctx := context.Background()
 			content, statusCode, err := client.FetchWebpage(ctx, server.URL)
 
-			if tt.shouldSucceed && err != nil {
-				t.Errorf("FetchWebpage() should succeed for %s, got error: %v", tt.name, err)
-			}
-
-			if !tt.shouldSucceed && err == nil {
-				t.Errorf("FetchWebpage() should fail for %s", tt.name)
-			}
-
-			if tt.shouldSucceed && len(content) == 0 {
-				t.Errorf("FetchWebpage() should return content for %s", tt.name)
-			}
-
-			if tt.shouldSucceed && statusCode != http.StatusOK {
-				t.Errorf("FetchWebpage() status code = %d, want %d for %s", statusCode, http.StatusOK, tt.name)
+			if tt.shouldSucceed {
+				require.NoError(t, err, "FetchWebpage() should succeed for %s", tt.name)
+				assert.NotEmpty(t, content, "FetchWebpage() should return content for %s", tt.name)
+				assert.Equal(t, http.StatusOK, statusCode, "Status code should be OK for %s", tt.name)
+			} else {
+				require.Error(t, err, "FetchWebpage() should fail for %s", tt.name)
 			}
 		})
 	}
-} 
+}

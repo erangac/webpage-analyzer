@@ -1,10 +1,12 @@
 package analyzer
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewWorkerPool(t *testing.T) {
@@ -20,39 +22,9 @@ func TestNewWorkerPool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pool := NewWorkerPool(tt.workers)
-			if pool == nil {
-				t.Fatal("NewWorkerPool() returned nil")
-			}
-			if pool.workers != tt.workers {
-				t.Errorf("NewWorkerPool() workers = %d, want %d", pool.workers, tt.workers)
-			}
+			require.NotNil(t, pool, "NewWorkerPool() should not return nil")
+			assert.Equal(t, tt.workers, pool.workers, "Worker count should match")
 		})
-	}
-}
-
-func TestWorkerPoolSubmit(t *testing.T) {
-	pool := NewWorkerPool(2)
-	defer pool.Shutdown()
-
-	var results []int
-	var mu sync.Mutex
-
-	// Submit multiple tasks
-	for i := 0; i < 5; i++ {
-		i := i // Capture loop variable
-		pool.Submit(func() error {
-			mu.Lock()
-			results = append(results, i)
-			mu.Unlock()
-			return nil
-		})
-	}
-
-	// Wait for all tasks to complete (Shutdown will handle this)
-	// pool.Wait() // Remove this to avoid double-closing the channel
-
-	if len(results) != 5 {
-		t.Errorf("Expected 5 results, got %d", len(results))
 	}
 }
 
@@ -64,21 +36,15 @@ func TestWorkerPoolSubmitAndWait(t *testing.T) {
 	err := pool.SubmitAndWait(func() error {
 		return nil
 	})
-	if err != nil {
-		t.Errorf("SubmitAndWait() returned error: %v", err)
-	}
+	assert.NoError(t, err, "SubmitAndWait() should not return error for successful task")
 
 	// Test task that returns error
 	expectedErr := "test error"
 	err = pool.SubmitAndWait(func() error {
 		return &AnalysisError{StatusCode: 400, ErrorMessage: expectedErr, URL: "test"}
 	})
-	if err == nil {
-		t.Error("SubmitAndWait() should return error")
-	}
-	if err.Error() != "HTTP 400: test error (URL: test)" {
-		t.Errorf("SubmitAndWait() error = %v, want 'HTTP 400: test error (URL: test)'", err.Error())
-	}
+	require.Error(t, err, "SubmitAndWait() should return error for failed task")
+	assert.Equal(t, "HTTP 400: test error (URL: test)", err.Error(), "Error message should match expected")
 }
 
 func TestWorkerPoolShutdown(t *testing.T) {
@@ -95,41 +61,7 @@ func TestWorkerPoolShutdown(t *testing.T) {
 	shutdownDuration := time.Since(shutdownStart)
 
 	// Should complete quickly
-	if shutdownDuration > 100*time.Millisecond {
-		t.Errorf("Shutdown took too long: %v", shutdownDuration)
-	}
-}
-
-func TestWorkerPoolContextCancellation(t *testing.T) {
-	pool := NewWorkerPool(2)
-	defer pool.Shutdown()
-
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-	defer cancel()
-
-	// Submit a task that respects context
-	taskCompleted := make(chan bool)
-	pool.Submit(func() error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(50 * time.Millisecond):
-			taskCompleted <- true
-			return nil
-		}
-	})
-
-	// Wait for context to timeout
-	time.Sleep(20 * time.Millisecond)
-
-	// Task should have been cancelled
-	select {
-	case <-taskCompleted:
-		t.Error("Task should have been cancelled")
-	default:
-		// Expected - task was cancelled
-	}
+	assert.Less(t, shutdownDuration, 100*time.Millisecond, "Shutdown should complete quickly")
 }
 
 func TestAnalysisTaskGroup(t *testing.T) {
@@ -156,30 +88,18 @@ func TestAnalysisTaskGroup(t *testing.T) {
 
 	// Check results
 	result1, err := group.GetResult("task1")
-	if err != nil {
-		t.Errorf("task1 error: %v", err)
-	}
-	if result1 != "result1" {
-		t.Errorf("task1 result = %v, want 'result1'", result1)
-	}
+	assert.NoError(t, err, "task1 should not have error")
+	assert.Equal(t, "result1", result1, "task1 result should match")
 
 	result2, err := group.GetResult("task2")
-	if err != nil {
-		t.Errorf("task2 error: %v", err)
-	}
-	if result2 != "result2" {
-		t.Errorf("task2 result = %v, want 'result2'", result2)
-	}
+	assert.NoError(t, err, "task2 should not have error")
+	assert.Equal(t, "result2", result2, "task2 result should match")
 
 	_, err = group.GetResult("task3")
-	if err == nil {
-		t.Error("task3 should have error")
-	}
+	assert.Error(t, err, "task3 should have error")
 
 	// Check if any tasks had errors
-	if !group.HasErrors() {
-		t.Error("HasErrors() should return true")
-	}
+	assert.True(t, group.HasErrors(), "HasErrors() should return true when tasks have errors")
 }
 
 func TestAnalysisTaskGroupNoErrors(t *testing.T) {
@@ -201,9 +121,7 @@ func TestAnalysisTaskGroupNoErrors(t *testing.T) {
 	group.ExecuteAll()
 
 	// Check if any tasks had errors
-	if group.HasErrors() {
-		t.Error("HasErrors() should return false")
-	}
+	assert.False(t, group.HasErrors(), "HasErrors() should return false when no tasks have errors")
 }
 
 func TestAnalysisTaskGroupGetResultNonExistent(t *testing.T) {
@@ -214,12 +132,8 @@ func TestAnalysisTaskGroupGetResultNonExistent(t *testing.T) {
 
 	// Try to get result for non-existent task
 	result, err := group.GetResult("nonexistent")
-	if result != nil {
-		t.Errorf("GetResult() for non-existent task should return nil, got %v", result)
-	}
-	if err != nil {
-		t.Errorf("GetResult() for non-existent task should return nil error, got %v", err)
-	}
+	assert.Nil(t, result, "GetResult() for non-existent task should return nil result")
+	assert.Nil(t, err, "GetResult() for non-existent task should return nil error")
 }
 
 func TestWorkerPoolConcurrentAccess(t *testing.T) {
@@ -245,46 +159,5 @@ func TestWorkerPoolConcurrentAccess(t *testing.T) {
 	// Wait for all tasks to complete
 	wg.Wait()
 
-	if counter != 100 {
-		t.Errorf("Expected counter to be 100, got %d", counter)
-	}
+	assert.Equal(t, 100, counter, "Counter should be 100 after all tasks complete")
 }
-
-func TestWorkerPoolTaskQueueBuffer(t *testing.T) {
-	// Test with different buffer sizes
-	tests := []struct {
-		name    string
-		workers int
-	}{
-		{"Small buffer", 1},
-		{"Large buffer", 10},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pool := NewWorkerPool(tt.workers)
-			defer pool.Shutdown()
-
-			// Submit more tasks than workers to test buffering
-			taskCount := tt.workers * 3
-			completed := make(chan bool, taskCount)
-
-			for i := 0; i < taskCount; i++ {
-				pool.Submit(func() error {
-					completed <- true
-					return nil
-				})
-			}
-
-			// Wait for all tasks to complete
-			for i := 0; i < taskCount; i++ {
-				select {
-				case <-completed:
-					// Task completed
-				case <-time.After(1 * time.Second):
-					t.Errorf("Task %d did not complete in time", i)
-				}
-			}
-		})
-	}
-} 

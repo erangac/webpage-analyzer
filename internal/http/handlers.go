@@ -70,7 +70,8 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // AnalyzeWebpage handles webpage analysis requests.
 // @Summary Analyze webpage
-// @Description Analyze a webpage and return comprehensive information including HTML version, page title, headings structure, link analysis, and login form detection
+// @Description Analyze a webpage and return comprehensive information including HTML version,
+// page title, headings structure, link analysis, and login form detection
 // @Tags Analysis
 // @Accept json
 // @Produce json

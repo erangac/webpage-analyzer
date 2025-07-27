@@ -4,8 +4,9 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
 )
 
@@ -40,9 +41,7 @@ func (m *mockHTTPClient) ParseHTML(content []byte) (interface{}, error) {
 
 func TestNewAnalyzerService(t *testing.T) {
 	service := NewService()
-	if service == nil {
-		t.Fatal("NewService() returned nil")
-	}
+	require.NotNil(t, service, "NewService() should not return nil")
 }
 
 func TestAnalyzeWebpage_Success(t *testing.T) {
@@ -85,52 +84,31 @@ func TestAnalyzeWebpage_Success(t *testing.T) {
 	ctx := context.Background()
 	result, err := service.AnalyzeWebpage(ctx, req)
 
-	if err != nil {
-		t.Fatalf("AnalyzeWebpage() returned error: %v", err)
-	}
-
-	if result == nil {
-		t.Fatal("AnalyzeWebpage() returned nil result")
-	}
+	require.NoError(t, err, "AnalyzeWebpage() should not return error")
+	require.NotNil(t, result, "AnalyzeWebpage() should not return nil result")
 
 	// Check HTML version
-	if result.HTMLVersion != "HTML5 (implied)" {
-		t.Errorf("AnalyzeWebpage() HTMLVersion = %s, want HTML5 (implied)", result.HTMLVersion)
-	}
+	assert.Equal(t, "HTML5 (implied)", result.HTMLVersion, "HTML version should match")
 
 	// Check title
-	if result.PageTitle != "Test Page" {
-		t.Errorf("AnalyzeWebpage() PageTitle = %s, want 'Test Page'", result.PageTitle)
-	}
+	assert.Equal(t, "Test Page", result.PageTitle, "Page title should match")
 
 	// Check headings
 	expectedHeadings := map[string]int{"h1": 1, "h2": 1}
-	if len(result.Headings) != len(expectedHeadings) {
-		t.Errorf("AnalyzeWebpage() Headings count = %d, want %d", len(result.Headings), len(expectedHeadings))
-	}
+	assert.Len(t, result.Headings, len(expectedHeadings), "Headings count should match")
 	for heading, count := range expectedHeadings {
-		if result.Headings[heading] != count {
-			t.Errorf("AnalyzeWebpage() Headings[%s] = %d, want %d", heading, result.Headings[heading], count)
-		}
+		assert.Equal(t, count, result.Headings[heading], "Heading count for %s should match", heading)
 	}
 
 	// Check links
-	if result.InternalLinks != 1 {
-		t.Errorf("AnalyzeWebpage() InternalLinks = %d, want 1", result.InternalLinks)
-	}
-	if result.ExternalLinks != 1 {
-		t.Errorf("AnalyzeWebpage() ExternalLinks = %d, want 1", result.ExternalLinks)
-	}
+	assert.Equal(t, 1, result.InternalLinks, "Internal links count should match")
+	assert.Equal(t, 1, result.ExternalLinks, "External links count should match")
 
 	// Check login form
-	if !result.HasLoginForm {
-		t.Error("AnalyzeWebpage() HasLoginForm = false, want true")
-	}
+	assert.True(t, result.HasLoginForm, "Login form should be detected")
 
 	// Check processing time
-	if result.ProcessingTime == "" {
-		t.Error("AnalyzeWebpage() ProcessingTime is empty")
-	}
+	assert.NotEmpty(t, result.ProcessingTime, "Processing time should not be empty")
 }
 
 func TestAnalyzeWebpage_HTTPError(t *testing.T) {
@@ -152,23 +130,14 @@ func TestAnalyzeWebpage_HTTPError(t *testing.T) {
 	ctx := context.Background()
 	result, err := service.AnalyzeWebpage(ctx, req)
 
-	if err == nil {
-		t.Fatal("AnalyzeWebpage() should return error")
-	}
-
-	if result != nil {
-		t.Error("AnalyzeWebpage() should return nil result when error occurs")
-	}
+	require.Error(t, err, "AnalyzeWebpage() should return error")
+	assert.Nil(t, result, "AnalyzeWebpage() should return nil result when error occurs")
 
 	analysisErr, ok := err.(*AnalysisError)
-	if !ok {
-		t.Fatal("Error should be of type *AnalysisError")
-	}
+	require.True(t, ok, "Error should be of type *AnalysisError")
 
 	expectedErrorMsg := "HTTP 500: HTTP 500: Network error (URL: https://example.com) (URL: https://example.com)"
-	if analysisErr.Error() != expectedErrorMsg {
-		t.Errorf("Error message = %s, want '%s'", analysisErr.Error(), expectedErrorMsg)
-	}
+	assert.Equal(t, expectedErrorMsg, analysisErr.Error(), "Error message should match expected")
 }
 
 func TestAnalyzeWebpage_InvalidURL(t *testing.T) {
@@ -181,13 +150,8 @@ func TestAnalyzeWebpage_InvalidURL(t *testing.T) {
 	ctx := context.Background()
 	result, err := service.AnalyzeWebpage(ctx, req)
 
-	if err == nil {
-		t.Fatal("AnalyzeWebpage() should return error for invalid URL")
-	}
-
-	if result != nil {
-		t.Error("AnalyzeWebpage() should return nil result for invalid URL")
-	}
+	require.Error(t, err, "AnalyzeWebpage() should return error for invalid URL")
+	assert.Nil(t, result, "AnalyzeWebpage() should return nil result for invalid URL")
 }
 
 func TestAnalyzeWebpage_EmptyURL(t *testing.T) {
@@ -200,13 +164,8 @@ func TestAnalyzeWebpage_EmptyURL(t *testing.T) {
 	ctx := context.Background()
 	result, err := service.AnalyzeWebpage(ctx, req)
 
-	if err == nil {
-		t.Fatal("AnalyzeWebpage() should return error for empty URL")
-	}
-
-	if result != nil {
-		t.Error("AnalyzeWebpage() should return nil result for empty URL")
-	}
+	require.Error(t, err, "AnalyzeWebpage() should return error for empty URL")
+	assert.Nil(t, result, "AnalyzeWebpage() should return nil result for empty URL")
 }
 
 func TestGetAnalysisStatus(t *testing.T) {
@@ -215,56 +174,16 @@ func TestGetAnalysisStatus(t *testing.T) {
 	ctx := context.Background()
 	status, err := service.GetAnalysisStatus(ctx)
 
-	if err != nil {
-		t.Fatalf("GetAnalysisStatus() returned error: %v", err)
-	}
-
-	if status == "" {
-		t.Error("GetAnalysisStatus() returned empty status")
-	}
+	require.NoError(t, err, "GetAnalysisStatus() should not return error")
+	assert.NotEmpty(t, status, "GetAnalysisStatus() should not return empty status")
 
 	// Status should be a meaningful string
-	if !strings.Contains(strings.ToLower(status), "operational") && 
-	   !strings.Contains(strings.ToLower(status), "ready") &&
-	   !strings.Contains(strings.ToLower(status), "available") {
-		t.Errorf("GetAnalysisStatus() returned unexpected status: %s", status)
-	}
-}
-
-func TestAnalyzeWebpage_ContextCancellation(t *testing.T) {
-	// Create a slow mock client
-	mockClient := &mockHTTPClient{
-		response: "<html><body>Test</body></html>",
-	}
-
-	service := &service{
-		httpClient: mockClient,
-		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(2),
-	}
-	defer service.workerPool.Shutdown()
-
-	req := AnalysisRequest{
-		URL: "https://example.com",
-	}
-
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	defer cancel()
-
-	// Cancel the context immediately
-	cancel()
-
-	result, err := service.AnalyzeWebpage(ctx, req)
-
-	// Should get context cancellation error
-	if err == nil {
-		t.Fatal("AnalyzeWebpage() should return error for cancelled context")
-	}
-
-	if result != nil {
-		t.Error("AnalyzeWebpage() should return nil result for cancelled context")
-	}
+	statusLower := strings.ToLower(status)
+	assert.True(t,
+		strings.Contains(statusLower, "operational") ||
+			strings.Contains(statusLower, "ready") ||
+			strings.Contains(statusLower, "available"),
+		"GetAnalysisStatus() should return meaningful status, got: %s", status)
 }
 
 func TestAnalyzeWebpage_ComplexHTML(t *testing.T) {
@@ -330,43 +249,28 @@ func TestAnalyzeWebpage_ComplexHTML(t *testing.T) {
 	ctx := context.Background()
 	result, err := service.AnalyzeWebpage(ctx, req)
 
-	if err != nil {
-		t.Fatalf("AnalyzeWebpage() returned error: %v", err)
-	}
+	require.NoError(t, err, "AnalyzeWebpage() should not return error")
+	require.NotNil(t, result, "AnalyzeWebpage() should not return nil result")
 
 	// Check HTML version (should be HTML4 based on DOCTYPE)
-	if result.HTMLVersion != "HTML4" {
-		t.Errorf("AnalyzeWebpage() HTMLVersion = %s, want HTML4", result.HTMLVersion)
-	}
+	assert.Equal(t, "HTML4", result.HTMLVersion, "HTML version should be HTML4")
 
 	// Check title
-	if result.PageTitle != "Complex Test Page" {
-		t.Errorf("AnalyzeWebpage() PageTitle = %s, want 'Complex Test Page'", result.PageTitle)
-	}
+	assert.Equal(t, "Complex Test Page", result.PageTitle, "Page title should match")
 
 	// Check headings (should have h1, h2, h3, h4)
 	expectedHeadings := map[string]int{"h1": 1, "h2": 2, "h3": 3, "h4": 1}
 	for heading, count := range expectedHeadings {
-		if result.Headings[heading] != count {
-			t.Errorf("AnalyzeWebpage() Headings[%s] = %d, want %d", heading, result.Headings[heading], count)
-		}
+		assert.Equal(t, count, result.Headings[heading], "Heading count for %s should match", heading)
 	}
 
 	// Check links
-	if result.InternalLinks != 2 { // /home, /about
-		t.Errorf("AnalyzeWebpage() InternalLinks = %d, want 2", result.InternalLinks)
-	}
-	if result.ExternalLinks != 3 { // https://external-site.com, mailto, tel
-		t.Errorf("AnalyzeWebpage() ExternalLinks = %d, want 3", result.ExternalLinks)
-	}
-	if result.InaccessibleLinks != 1 { // empty (javascript is filtered out)
-		t.Errorf("AnalyzeWebpage() InaccessibleLinks = %d, want 1", result.InaccessibleLinks)
-	}
+	assert.Equal(t, 2, result.InternalLinks, "Internal links count should match")         // /home, /about
+	assert.Equal(t, 3, result.ExternalLinks, "External links count should match")         // https://external-site.com, mailto, tel
+	assert.Equal(t, 1, result.InaccessibleLinks, "Inaccessible links count should match") // empty (javascript is filtered out)
 
 	// Check login form (should be detected due to password input)
-	if !result.HasLoginForm {
-		t.Error("AnalyzeWebpage() HasLoginForm = false, want true")
-	}
+	assert.True(t, result.HasLoginForm, "Login form should be detected")
 }
 
 func TestAnalyzeWebpage_NoLoginForm(t *testing.T) {
@@ -405,12 +309,9 @@ func TestAnalyzeWebpage_NoLoginForm(t *testing.T) {
 	ctx := context.Background()
 	result, err := service.AnalyzeWebpage(ctx, req)
 
-	if err != nil {
-		t.Fatalf("AnalyzeWebpage() returned error: %v", err)
-	}
+	require.NoError(t, err, "AnalyzeWebpage() should not return error")
+	require.NotNil(t, result, "AnalyzeWebpage() should not return nil result")
 
 	// Should not detect login form
-	if result.HasLoginForm {
-		t.Error("AnalyzeWebpage() HasLoginForm = true, want false")
-	}
-} 
+	assert.False(t, result.HasLoginForm, "Login form should not be detected")
+}

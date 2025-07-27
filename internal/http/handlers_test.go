@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"webpage-analyzer/internal/analyzer"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Mock analyzer service for testing
@@ -36,13 +39,9 @@ func (m *mockAnalyzerService) GetAnalysisStatus(ctx context.Context) (string, er
 func TestNewHandler(t *testing.T) {
 	mockService := &mockAnalyzerService{}
 	handler := NewHandler(mockService)
-	
-	if handler == nil {
-		t.Fatal("NewHandler() returned nil")
-	}
-	if handler.analyzerService != mockService {
-		t.Error("NewHandler() did not set analyzer service correctly")
-	}
+
+	assert.NotNil(t, handler, "NewHandler() should not return nil")
+	assert.Equal(t, mockService, handler.analyzerService, "NewHandler() should set analyzer service correctly")
 }
 
 func TestHealthCheck(t *testing.T) {
@@ -54,24 +53,14 @@ func TestHealthCheck(t *testing.T) {
 
 	handler.HealthCheck(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("HealthCheck() status = %d, want %d", w.Code, http.StatusOK)
-	}
+	assert.Equal(t, http.StatusOK, w.Code, "HealthCheck() should return 200 status")
 
 	var response map[string]string
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err, "Should decode response JSON successfully")
 
-	expectedStatus := "healthy"
-	if response["status"] != expectedStatus {
-		t.Errorf("HealthCheck() status = %s, want %s", response["status"], expectedStatus)
-	}
-
-	expectedService := "webpage-analyzer"
-	if response["service"] != expectedService {
-		t.Errorf("HealthCheck() service = %s, want %s", response["service"], expectedService)
-	}
+	assert.Equal(t, "healthy", response["status"], "HealthCheck() should return 'healthy' status")
+	assert.Equal(t, "webpage-analyzer", response["service"], "HealthCheck() should return correct service name")
 }
 
 func TestAnalyzeWebpage_Success(t *testing.T) {
@@ -102,24 +91,15 @@ func TestAnalyzeWebpage_Success(t *testing.T) {
 
 	handler.AnalyzeWebpage(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("AnalyzeWebpage() status = %d, want %d", w.Code, http.StatusOK)
-	}
+	assert.Equal(t, http.StatusOK, w.Code, "AnalyzeWebpage() should return 200 status")
 
 	var response analyzer.WebpageAnalysis
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err, "Should decode response JSON successfully")
 
-	if response.HTMLVersion != mockResult.HTMLVersion {
-		t.Errorf("AnalyzeWebpage() HTMLVersion = %s, want %s", response.HTMLVersion, mockResult.HTMLVersion)
-	}
-	if response.PageTitle != mockResult.PageTitle {
-		t.Errorf("AnalyzeWebpage() PageTitle = %s, want %s", response.PageTitle, mockResult.PageTitle)
-	}
-	if response.HasLoginForm != mockResult.HasLoginForm {
-		t.Errorf("AnalyzeWebpage() HasLoginForm = %v, want %v", response.HasLoginForm, mockResult.HasLoginForm)
-	}
+	assert.Equal(t, mockResult.HTMLVersion, response.HTMLVersion, "HTMLVersion should match")
+	assert.Equal(t, mockResult.PageTitle, response.PageTitle, "PageTitle should match")
+	assert.Equal(t, mockResult.HasLoginForm, response.HasLoginForm, "HasLoginForm should match")
 }
 
 func TestAnalyzeWebpage_InvalidMethod(t *testing.T) {
@@ -131,9 +111,7 @@ func TestAnalyzeWebpage_InvalidMethod(t *testing.T) {
 
 	handler.AnalyzeWebpage(w, req)
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("AnalyzeWebpage() status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
-	}
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code, "AnalyzeWebpage() should return 405 for invalid method")
 }
 
 func TestAnalyzeWebpage_InvalidJSON(t *testing.T) {
@@ -146,9 +124,7 @@ func TestAnalyzeWebpage_InvalidJSON(t *testing.T) {
 
 	handler.AnalyzeWebpage(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("AnalyzeWebpage() status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
+	assert.Equal(t, http.StatusBadRequest, w.Code, "AnalyzeWebpage() should return 400 for invalid JSON")
 }
 
 func TestAnalyzeWebpage_AnalysisError(t *testing.T) {
@@ -174,21 +150,14 @@ func TestAnalyzeWebpage_AnalysisError(t *testing.T) {
 
 	handler.AnalyzeWebpage(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("AnalyzeWebpage() status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
+	assert.Equal(t, http.StatusBadRequest, w.Code, "AnalyzeWebpage() should return 400 for analysis error")
 
 	var response analyzer.AnalysisError
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err, "Should decode error response JSON successfully")
 
-	if response.ErrorMessage != mockError.ErrorMessage {
-		t.Errorf("AnalyzeWebpage() error message = %s, want %s", response.ErrorMessage, mockError.ErrorMessage)
-	}
-	if response.StatusCode != mockError.StatusCode {
-		t.Errorf("AnalyzeWebpage() status code = %d, want %d", response.StatusCode, mockError.StatusCode)
-	}
+	assert.Equal(t, mockError.ErrorMessage, response.ErrorMessage, "Error message should match")
+	assert.Equal(t, mockError.StatusCode, response.StatusCode, "Status code should match")
 }
 
 func TestAnalyzeWebpage_InternalError(t *testing.T) {
@@ -208,9 +177,7 @@ func TestAnalyzeWebpage_InternalError(t *testing.T) {
 
 	handler.AnalyzeWebpage(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("AnalyzeWebpage() status = %d, want %d", w.Code, http.StatusInternalServerError)
-	}
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "AnalyzeWebpage() should return 500 for internal error")
 }
 
 func TestGetAnalysisStatus_Success(t *testing.T) {
@@ -225,18 +192,13 @@ func TestGetAnalysisStatus_Success(t *testing.T) {
 
 	handler.GetAnalysisStatus(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("GetAnalysisStatus() status = %d, want %d", w.Code, http.StatusOK)
-	}
+	assert.Equal(t, http.StatusOK, w.Code, "GetAnalysisStatus() should return 200 status")
 
 	var response map[string]string
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err, "Should decode response JSON successfully")
 
-	if response["status"] != expectedStatus {
-		t.Errorf("GetAnalysisStatus() status = %s, want %s", response["status"], expectedStatus)
-	}
+	assert.Equal(t, expectedStatus, response["status"], "Status should match expected value")
 }
 
 func TestGetAnalysisStatus_Error(t *testing.T) {
@@ -250,9 +212,7 @@ func TestGetAnalysisStatus_Error(t *testing.T) {
 
 	handler.GetAnalysisStatus(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("GetAnalysisStatus() status = %d, want %d", w.Code, http.StatusInternalServerError)
-	}
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "GetAnalysisStatus() should return 500 for error")
 }
 
 func TestWriteJSON(t *testing.T) {
@@ -263,23 +223,16 @@ func TestWriteJSON(t *testing.T) {
 
 	handler.writeJSON(w, http.StatusOK, testData)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("writeJSON() status = %d, want %d", w.Code, http.StatusOK)
-	}
+	assert.Equal(t, http.StatusOK, w.Code, "writeJSON() should set correct status code")
 
 	contentType := w.Header().Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("writeJSON() Content-Type = %s, want application/json", contentType)
-	}
+	assert.Equal(t, "application/json", contentType, "writeJSON() should set correct Content-Type")
 
 	var response map[string]string
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err, "Should decode response JSON successfully")
 
-	if response["key"] != "value" {
-		t.Errorf("writeJSON() response = %v, want %v", response, testData)
-	}
+	assert.Equal(t, "value", response["key"], "writeJSON() should encode data correctly")
 }
 
 func TestWriteError(t *testing.T) {
@@ -290,13 +243,8 @@ func TestWriteError(t *testing.T) {
 
 	handler.writeError(w, http.StatusBadRequest, errorMessage)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("writeError() status = %d, want %d", w.Code, http.StatusBadRequest)
-	}
-
-	if w.Body.String() != errorMessage+"\n" {
-		t.Errorf("writeError() body = %s, want %s", w.Body.String(), errorMessage+"\n")
-	}
+	assert.Equal(t, http.StatusBadRequest, w.Code, "writeError() should set correct status code")
+	assert.Equal(t, errorMessage+"\n", w.Body.String(), "writeError() should write error message")
 }
 
 func TestWriteJSON_EncodingError(t *testing.T) {
@@ -310,7 +258,5 @@ func TestWriteJSON_EncodingError(t *testing.T) {
 
 	// The test expects 500 but the actual implementation returns 200
 	// This is because the error is handled internally and doesn't change the status code
-	if w.Code != http.StatusOK {
-		t.Errorf("writeJSON() status = %d, want %d", w.Code, http.StatusOK)
-	}
-} 
+	assert.Equal(t, http.StatusOK, w.Code, "writeJSON() should handle encoding errors gracefully")
+}

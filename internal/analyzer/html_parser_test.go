@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
 )
 
 func TestNewHTMLParser(t *testing.T) {
 	parser := NewHTMLParser()
-	if parser == nil {
-		t.Fatal("NewHTMLParser() returned nil")
-	}
+	require.NotNil(t, parser, "NewHTMLParser() should not return nil")
 }
 
 func TestExtractHTMLVersion(t *testing.T) {
@@ -53,9 +53,7 @@ func TestExtractHTMLVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			doc, _ := html.Parse(strings.NewReader(tt.html))
 			result := parser.ExtractHTMLVersion(doc)
-			if result != tt.expected {
-				t.Errorf("ExtractHTMLVersion() = %v, want %v", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "HTML version should match expected")
 		})
 	}
 }
@@ -99,9 +97,7 @@ func TestExtractPageTitle(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			doc, _ := html.Parse(strings.NewReader(tt.html))
 			result := parser.ExtractPageTitle(doc)
-			if result != tt.expected {
-				t.Errorf("ExtractPageTitle() = %v, want %v", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "Page title should match expected")
 		})
 	}
 }
@@ -136,14 +132,9 @@ func TestExtractHeadings(t *testing.T) {
 		"h6": 1,
 	}
 
-	if len(result) != len(expected) {
-		t.Errorf("ExtractHeadings() returned %d heading types, want %d", len(result), len(expected))
-	}
-
+	assert.Len(t, result, len(expected), "Number of heading types should match")
 	for heading, count := range expected {
-		if result[heading] != count {
-			t.Errorf("ExtractHeadings() [%s] = %d, want %d", heading, result[heading], count)
-		}
+		assert.Equal(t, count, result[heading], "Heading count for %s should match", heading)
 	}
 }
 
@@ -151,11 +142,11 @@ func TestExtractLinks(t *testing.T) {
 	parser := NewHTMLParser()
 
 	tests := []struct {
-		name           string
-		html           string
-		baseURL        string
-		expectedInternal int
-		expectedExternal int
+		name                 string
+		html                 string
+		baseURL              string
+		expectedInternal     int
+		expectedExternal     int
 		expectedInaccessible int
 	}{
 		{
@@ -173,17 +164,17 @@ func TestExtractLinks(t *testing.T) {
 					</body>
 				</html>
 			`,
-			baseURL: "https://mysite.com",
-			expectedInternal: 2,      // /internal, #anchor
-			expectedExternal: 3,      // https://example.com, mailto, tel
-			expectedInaccessible: 1,  // empty (javascript is filtered out)
+			baseURL:              "https://mysite.com",
+			expectedInternal:     2, // /internal, #anchor
+			expectedExternal:     3, // https://example.com, mailto, tel
+			expectedInaccessible: 1, // empty (javascript is filtered out)
 		},
 		{
-			name: "No links",
-			html: `<html><body><div>No links here</div></body></html>`,
-			baseURL: "https://mysite.com",
-			expectedInternal: 0,
-			expectedExternal: 0,
+			name:                 "No links",
+			html:                 `<html><body><div>No links here</div></body></html>`,
+			baseURL:              "https://mysite.com",
+			expectedInternal:     0,
+			expectedExternal:     0,
 			expectedInaccessible: 0,
 		},
 	}
@@ -193,15 +184,9 @@ func TestExtractLinks(t *testing.T) {
 			doc, _ := html.Parse(strings.NewReader(tt.html))
 			internal, external, inaccessible := parser.ExtractLinks(doc, tt.baseURL)
 
-			if internal != tt.expectedInternal {
-				t.Errorf("ExtractLinks() internal = %d, want %d", internal, tt.expectedInternal)
-			}
-			if external != tt.expectedExternal {
-				t.Errorf("ExtractLinks() external = %d, want %d", external, tt.expectedExternal)
-			}
-			if inaccessible != tt.expectedInaccessible {
-				t.Errorf("ExtractLinks() inaccessible = %d, want %d", inaccessible, tt.expectedInaccessible)
-			}
+			assert.Equal(t, tt.expectedInternal, internal, "Internal links count should match")
+			assert.Equal(t, tt.expectedExternal, external, "External links count should match")
+			assert.Equal(t, tt.expectedInaccessible, inaccessible, "Inaccessible links count should match")
 		})
 	}
 }
@@ -261,8 +246,8 @@ func TestExtractLoginForm(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "No forms",
-			html: `<html><body><div>No forms here</div></body></html>`,
+			name:     "No forms",
+			html:     `<html><body><div>No forms here</div></body></html>`,
 			expected: false,
 		},
 	}
@@ -271,9 +256,7 @@ func TestExtractLoginForm(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			doc, _ := html.Parse(strings.NewReader(tt.html))
 			result := parser.ExtractLoginForm(doc)
-			if result != tt.expected {
-				t.Errorf("ExtractLoginForm() = %v, want %v", result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "Login form detection should match expected")
 		})
 	}
 }
@@ -299,25 +282,17 @@ func TestCaseInsensitiveElementDetection(t *testing.T) {
 
 	// Test title extraction
 	title := parser.ExtractPageTitle(doc)
-	if title != "Test Title" {
-		t.Errorf("ExtractPageTitle() with uppercase TITLE = %v, want 'Test Title'", title)
-	}
+	assert.Equal(t, "Test Title", title, "Title extraction should work with uppercase TITLE")
 
 	// Test headings extraction
 	headings := parser.ExtractHeadings(doc)
-	if headings["h1"] != 1 {
-		t.Errorf("ExtractHeadings() with uppercase H1 = %v, want 1", headings["h1"])
-	}
+	assert.Equal(t, 1, headings["h1"], "Headings extraction should work with uppercase H1")
 
 	// Test links extraction
 	internal, _, _ := parser.ExtractLinks(doc, "https://example.com")
-	if internal != 1 {
-		t.Errorf("ExtractLinks() with uppercase A = %v, want 1", internal)
-	}
+	assert.Equal(t, 1, internal, "Links extraction should work with uppercase A")
 
 	// Test login form detection
 	hasLoginForm := parser.ExtractLoginForm(doc)
-	if !hasLoginForm {
-		t.Error("ExtractLoginForm() with uppercase FORM/INPUT should detect login form")
-	}
-} 
+	assert.True(t, hasLoginForm, "Login form detection should work with uppercase FORM/INPUT")
+}

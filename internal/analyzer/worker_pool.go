@@ -22,6 +22,20 @@ type WorkerPool struct {
 	cancel    context.CancelFunc
 }
 
+// AnalysisTask represents a specific analysis task with result.
+type AnalysisTask struct {
+	Name   string
+	Task   func() (interface{}, error)
+	Result interface{}
+	Error  error
+}
+
+// AnalysisTaskGroup manages a group of related analysis tasks.
+type AnalysisTaskGroup struct {
+	tasks []*AnalysisTask
+	pool  *WorkerPool
+}
+
 // NewWorkerPool creates a new worker pool with the specified number of workers.
 func NewWorkerPool(workers int) *WorkerPool {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -96,20 +110,6 @@ func (wp *WorkerPool) Shutdown() {
 	wp.cancel()         // Cancel context to stop workers.
 	close(wp.taskQueue) // Close task queue to signal workers to stop
 	wp.wg.Wait()        // Wait for all workers to finish.
-}
-
-// AnalysisTask represents a specific analysis task with result.
-type AnalysisTask struct {
-	Name   string
-	Task   func() (interface{}, error)
-	Result interface{}
-	Error  error
-}
-
-// AnalysisTaskGroup manages a group of related analysis tasks.
-type AnalysisTaskGroup struct {
-	tasks []*AnalysisTask
-	pool  *WorkerPool
 }
 
 // NewAnalysisTaskGroup creates a new task group for analysis.
