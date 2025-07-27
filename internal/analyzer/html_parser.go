@@ -14,7 +14,7 @@ const (
 	html4Keyword = "html4"
 	xhtmlKeyword = "xhtml"
 
-	// Login form keywords.
+	// Login form keywords (more specific to reduce false positives).
 	loginKeyword    = "login"
 	signInKeyword   = "sign in"
 	usernameKeyword = "username"
@@ -315,13 +315,199 @@ func (p *htmlParser) isFormElement(n *html.Node) bool {
 	return n.Type == html.ElementNode && strings.EqualFold(n.Data, "form")
 }
 
-// isLoginForm checks if a form is a login form.
+// isLoginForm checks if a form is a login form using a more robust approach.
 func (p *htmlParser) isLoginForm(n *html.Node) bool {
+	// 1. Check for password input (strongest indicator)
+	hasPassword := p.hasPasswordInput(n)
+	if !hasPassword {
+		return false // No password field = not a login form
+	}
+
+	// 2. Check for login-specific patterns in form attributes
+	hasLoginPattern := p.hasLoginPattern(n)
+
+	// 3. Check for authentication-related attributes
+	hasAuthAttributes := p.hasAuthAttributes(n)
+
+	// 4. Check for login-related text (but be more specific)
+	hasLoginText := p.hasSpecificLoginText(n)
+
+	// 5. Check for submit button with login text
+	hasLoginSubmit := p.hasLoginSubmitButton(n)
+
+	// 6. Check for login-related input names/ids
+	hasLoginInputs := p.hasLoginInputs(n)
+
+	// If password field exists, require at least one other indicator
+	// This is more permissive than requiring multiple indicators but still more specific than the original
+	return hasPassword && (hasLoginPattern || hasAuthAttributes || hasLoginText || hasLoginSubmit || hasLoginInputs)
+}
+
+// hasPasswordInput checks if the form contains a password input field.
+func (p *htmlParser) hasPasswordInput(n *html.Node) bool {
+	return p.hasInputWithType(n, "password")
+}
+
+// hasInputWithType checks if the form contains an input with the specified type.
+func (p *htmlParser) hasInputWithType(node *html.Node, inputType string) bool {
+	if p.isInputElement(node) {
+		for _, attr := range node.Attr {
+			if strings.EqualFold(attr.Key, "type") && strings.EqualFold(attr.Val, inputType) {
+				return true
+			}
+		}
+	}
+
+	for c := node.FirstChild; c != nil; c = c.NextSibling {
+		if p.hasInputWithType(c, inputType) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasLoginPattern checks for login-specific patterns in form attributes.
+func (p *htmlParser) hasLoginPattern(n *html.Node) bool {
+	// Check form action, id, name, class for login patterns
+	for _, attr := range n.Attr {
+		attrValue := strings.ToLower(attr.Val)
+		switch strings.ToLower(attr.Key) {
+		case "action", "id", "name", "class":
+			if p.containsLoginPattern(attrValue) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// containsLoginPattern checks if a string contains login-specific patterns.
+func (p *htmlParser) containsLoginPattern(s string) bool {
+	patterns := []string{
+		"login", "signin", "sign_in", "sign-in",
+		"authenticate", "auth", "authentication",
+		"logon", "signon", "sign_on", "sign-on",
+	}
+
+	for _, pattern := range patterns {
+		if strings.Contains(s, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAuthAttributes checks for authentication-related attributes.
+func (p *htmlParser) hasAuthAttributes(n *html.Node) bool {
+	// Check for common authentication-related attributes
+	authAttrs := []string{"autocomplete", "data-auth", "data-login"}
+
+	for _, attr := range n.Attr {
+		attrKey := strings.ToLower(attr.Key)
+		attrValue := strings.ToLower(attr.Val)
+
+		for _, authAttr := range authAttrs {
+			if strings.Contains(attrKey, authAttr) {
+				return true
+			}
+		}
+
+		// Check for autocomplete values related to login
+		if attrKey == "autocomplete" {
+			loginAutocomplete := []string{"username", "current-password", "new-password"}
+			for _, loginAuto := range loginAutocomplete {
+				if strings.Contains(attrValue, loginAuto) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// hasSpecificLoginText checks for login-related text with more specific patterns.
+func (p *htmlParser) hasSpecificLoginText(n *html.Node) bool {
 	formText := strings.ToLower(p.getNodeText(n))
-	return p.containsLoginKeywords(formText) || p.hasLoginInputs(n)
+
+	// More specific login-related phrases
+	loginPhrases := []string{
+		"sign in to", "log in to", "login to",
+		"welcome back", "welcome to",
+		"enter your", "provide your",
+		"access your account", "access account",
+		"your credentials", "your password",
+		"authentication required", "login required",
+	}
+
+	for _, phrase := range loginPhrases {
+		if strings.Contains(formText, phrase) {
+			return true
+		}
+	}
+
+	// Check for specific input labels
+	inputLabels := []string{
+		"username", "user id", "userid", "user-id",
+		"email address", "email addr", "e-mail",
+		"password", "passwd", "pass word", "pass-word",
+	}
+
+	for _, label := range inputLabels {
+		if strings.Contains(formText, label) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasLoginSubmitButton checks for submit buttons with login-related text.
+func (p *htmlParser) hasLoginSubmitButton(n *html.Node) bool {
+	return p.findSubmitButtonWithText(n, []string{
+		"login", "sign in", "signin", "log in",
+		"authenticate", "continue", "submit",
+		"enter", "access", "proceed",
+	})
+}
+
+// findSubmitButtonWithText checks for submit buttons with specific text.
+func (p *htmlParser) findSubmitButtonWithText(node *html.Node, buttonTexts []string) bool {
+	if p.isSubmitButton(node) {
+		buttonText := strings.ToLower(p.getNodeText(node))
+		for _, text := range buttonTexts {
+			if strings.Contains(buttonText, text) {
+				return true
+			}
+		}
+	}
+
+	for c := node.FirstChild; c != nil; c = c.NextSibling {
+		if p.findSubmitButtonWithText(c, buttonTexts) {
+			return true
+		}
+	}
+	return false
+}
+
+// isSubmitButton checks if the node is a submit button.
+func (p *htmlParser) isSubmitButton(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+
+	switch strings.ToLower(n.Data) {
+	case "button", "input":
+		for _, attr := range n.Attr {
+			if strings.EqualFold(attr.Key, "type") && strings.EqualFold(attr.Val, "submit") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // containsLoginKeywords checks if text contains login-related keywords.
+// This is kept for backward compatibility but is now more specific.
 func (p *htmlParser) containsLoginKeywords(text string) bool {
 	keywords := []string{loginKeyword, signInKeyword, usernameKeyword, passwordKeyword, emailKeyword, logInKeyword}
 
@@ -382,7 +568,8 @@ func (p *htmlParser) isLoginAttribute(attr html.Attribute) bool {
 // containsLoginKeyword checks if a string contains login keywords.
 func (p *htmlParser) containsLoginKeyword(s string) bool {
 	name := strings.ToLower(s)
-	keywords := []string{"user", "pass", "login", "email"}
+	// More specific keywords to reduce false positives
+	keywords := []string{"username", "userid", "user_id", "user-name", "password", "passwd", "pass_word", "pass-word", "login", "email"}
 
 	for _, keyword := range keywords {
 		if strings.Contains(name, keyword) {
