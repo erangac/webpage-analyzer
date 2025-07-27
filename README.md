@@ -295,3 +295,9 @@ go test ./...
 
 Once the server is running, visit `http://localhost:8990/docs` for interactive API documentation. You can test endpoints directly from your browser.
 
+## Future Improvements
+
+- **Enhanced Testing**: Add edge case testing, integration tests, and performance benchmarks
+- **Dependency Injection**: Implement Wire framework for better service management
+- **Code Logic**: Improve login detection, link categorization, and error handling
+
