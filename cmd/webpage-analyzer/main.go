@@ -48,10 +48,8 @@ func registerRoutes(handler *httphandler.Handler) {
 	})
 }
 
-func main() {
-	port := flag.String("port", "8080", "Port to run the server on")
-	flag.Parse()
-
+// setupServer initializes and returns a configured HTTP server
+func setupServer(port string) *http.Server {
 	// Initialize structured logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -68,7 +66,7 @@ func main() {
 	registerRoutes(handler)
 
 	slog.Info("Starting webpage analyzer server",
-		"port", *port,
+		"port", port,
 		"static_dir", staticDir,
 	)
 
@@ -88,13 +86,13 @@ func main() {
 	for _, endpoint := range endpoints {
 		slog.Info("Endpoint available",
 			"name", endpoint.name,
-			"url", "http://localhost:"+*port+endpoint.path,
+			"url", "http://localhost:"+port+endpoint.path,
 		)
 	}
 
 	// Create server with timeout configuration.
 	server := &http.Server{
-		Addr:         ":" + *port,
+		Addr:         ":" + port,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -105,6 +103,15 @@ func main() {
 		"write_timeout", server.WriteTimeout,
 		"idle_timeout", server.IdleTimeout,
 	)
+
+	return server
+}
+
+func main() {
+	port := flag.String("port", "8080", "Port to run the server on")
+	flag.Parse()
+
+	server := setupServer(*port)
 
 	if err := server.ListenAndServe(); err != nil {
 		slog.Error("Server failed to start", "error", err)
