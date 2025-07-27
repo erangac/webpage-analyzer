@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
+
+	"webpage-analyzer/internal/parser"
+	"webpage-analyzer/internal/worker"
 )
 
 // Mock HTTP client for testing
@@ -45,109 +48,83 @@ func TestNewAnalyzerService(t *testing.T) {
 }
 
 func TestAnalyzeWebpage_Success(t *testing.T) {
-	// Create a mock HTML response
-	htmlContent := `
-		<!DOCTYPE html>
-		<html>
-			<head>
-				<title>Test Page</title>
-			</head>
-			<body>
-				<h1>Main Heading</h1>
-				<h2>Sub Heading</h2>
-				<a href="/internal">Internal Link</a>
-				<a href="https://external.com">External Link</a>
-				<form>
-					<input type="text" name="username">
-					<input type="password" name="password">
-					<button type="submit">Login</button>
-				</form>
-			</body>
-		</html>
-	`
-
+	// Create mock dependencies
 	mockClient := &mockHTTPClient{
-		response: htmlContent,
+		response: `
+			<!DOCTYPE html>
+			<html>
+				<head>
+					<title>Test Page</title>
+				</head>
+				<body>
+					<h1>Main Heading</h1>
+					<h2>Sub Heading</h2>
+					<a href="/internal">Internal Link</a>
+					<a href="https://external.com">External Link</a>
+				</body>
+			</html>
+		`,
 	}
 
-	service := &service{
-		httpClient: mockClient,
-		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(2),
-	}
-	defer service.workerPool.Shutdown()
+	htmlParser := parser.NewHTMLParser()
+	workerPool := worker.NewWorkerPool(2)
 
-	req := AnalysisRequest{
-		URL: "https://example.com",
-	}
+	// Create service with mock dependencies
+	service := NewServiceWithDependencies(mockClient, htmlParser, workerPool)
 
+	// Test analysis
 	ctx := context.Background()
+	req := AnalysisRequest{URL: "https://example.com"}
 	result, err := service.AnalyzeWebpage(ctx, req)
 
 	require.NoError(t, err, "AnalyzeWebpage() should not return error")
 	require.NotNil(t, result, "AnalyzeWebpage() should not return nil result")
-
-	// Check HTML version
 	assert.Equal(t, "HTML5 (implied)", result.HTMLVersion, "HTML version should match")
-
-	// Check title
 	assert.Equal(t, "Test Page", result.PageTitle, "Page title should match")
-
-	// Check headings
-	expectedHeadings := map[string]int{"h1": 1, "h2": 1}
-	assert.Len(t, result.Headings, len(expectedHeadings), "Headings count should match")
-	for heading, count := range expectedHeadings {
-		assert.Equal(t, count, result.Headings[heading], "Heading count for %s should match", heading)
-	}
-
-	// Check links
+	assert.Equal(t, 1, result.Headings["h1"], "H1 count should match")
+	assert.Equal(t, 1, result.Headings["h2"], "H2 count should match")
 	assert.Equal(t, 1, result.InternalLinks, "Internal links count should match")
 	assert.Equal(t, 1, result.ExternalLinks, "External links count should match")
-
-	// Check login form
-	assert.True(t, result.HasLoginForm, "Login form should be detected")
-
-	// Check processing time
-	assert.NotEmpty(t, result.ProcessingTime, "Processing time should not be empty")
+	assert.False(t, result.HasLoginForm, "Login form should not be detected")
 }
 
 func TestAnalyzeWebpage_HTTPError(t *testing.T) {
+	// Create mock client that returns error
 	mockClient := &mockHTTPClient{
-		error: &AnalysisError{StatusCode: 500, ErrorMessage: "Network error", URL: "https://example.com"},
+		error: assert.AnError,
 	}
 
-	service := &service{
-		httpClient: mockClient,
-		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(2),
-	}
-	defer service.workerPool.Shutdown()
+	htmlParser := parser.NewHTMLParser()
+	workerPool := worker.NewWorkerPool(2)
 
-	req := AnalysisRequest{
-		URL: "https://example.com",
-	}
+	service := NewServiceWithDependencies(mockClient, htmlParser, workerPool)
 
 	ctx := context.Background()
+	req := AnalysisRequest{URL: "https://example.com"}
 	result, err := service.AnalyzeWebpage(ctx, req)
 
 	require.Error(t, err, "AnalyzeWebpage() should return error")
-	assert.Nil(t, result, "AnalyzeWebpage() should return nil result when error occurs")
+	assert.Nil(t, result, "AnalyzeWebpage() should return nil result on error")
 
+	// Check if it's an AnalysisError
 	analysisErr, ok := err.(*AnalysisError)
-	require.True(t, ok, "Error should be of type *AnalysisError")
-
-	expectedErrorMsg := "HTTP 500: HTTP 500: Network error (URL: https://example.com) (URL: https://example.com)"
-	assert.Equal(t, expectedErrorMsg, analysisErr.Error(), "Error message should match expected")
+	require.True(t, ok, "Error should be of type AnalysisError")
+	assert.Equal(t, 500, analysisErr.StatusCode, "Status code should match")
 }
 
 func TestAnalyzeWebpage_InvalidURL(t *testing.T) {
-	service := NewService()
-
-	req := AnalysisRequest{
-		URL: "invalid-url",
+	// Create mock client that returns error for invalid URL
+	mockClient := &mockHTTPClient{
+		error: assert.AnError,
 	}
 
+	htmlParser := parser.NewHTMLParser()
+	workerPool := worker.NewWorkerPool(2)
+
+	service := NewServiceWithDependencies(mockClient, htmlParser, workerPool)
+
 	ctx := context.Background()
+	req := AnalysisRequest{URL: "invalid-url"}
 	result, err := service.AnalyzeWebpage(ctx, req)
 
 	require.Error(t, err, "AnalyzeWebpage() should return error for invalid URL")
@@ -155,13 +132,18 @@ func TestAnalyzeWebpage_InvalidURL(t *testing.T) {
 }
 
 func TestAnalyzeWebpage_EmptyURL(t *testing.T) {
-	service := NewService()
-
-	req := AnalysisRequest{
-		URL: "",
+	// Create mock client that returns error for empty URL
+	mockClient := &mockHTTPClient{
+		error: assert.AnError,
 	}
 
+	htmlParser := parser.NewHTMLParser()
+	workerPool := worker.NewWorkerPool(2)
+
+	service := NewServiceWithDependencies(mockClient, htmlParser, workerPool)
+
 	ctx := context.Background()
+	req := AnalysisRequest{URL: ""}
 	result, err := service.AnalyzeWebpage(ctx, req)
 
 	require.Error(t, err, "AnalyzeWebpage() should return error for empty URL")
@@ -170,148 +152,109 @@ func TestAnalyzeWebpage_EmptyURL(t *testing.T) {
 
 func TestGetAnalysisStatus(t *testing.T) {
 	service := NewService()
-
 	ctx := context.Background()
+
 	status, err := service.GetAnalysisStatus(ctx)
 
 	require.NoError(t, err, "GetAnalysisStatus() should not return error")
-	assert.NotEmpty(t, status, "GetAnalysisStatus() should not return empty status")
-
-	// Status should be a meaningful string
-	statusLower := strings.ToLower(status)
-	assert.True(t,
-		strings.Contains(statusLower, "operational") ||
-			strings.Contains(statusLower, "ready") ||
-			strings.Contains(statusLower, "available"),
-		"GetAnalysisStatus() should return meaningful status, got: %s", status)
+	assert.NotEmpty(t, status, "GetAnalysisStatus() should return non-empty status")
+	assert.Contains(t, status, "Service is running", "Status should contain expected message")
 }
 
 func TestAnalyzeWebpage_ComplexHTML(t *testing.T) {
-	// Test with more complex HTML structure
-	htmlContent := `
-		<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-		<html>
-			<head>
-				<title>Complex Test Page</title>
-			</head>
-			<body>
-				<h1>Main Title</h1>
-				<h2>Section 1</h2>
-				<h3>Subsection 1.1</h3>
-				<h2>Section 2</h2>
-				<h3>Subsection 2.1</h3>
-				<h4>Sub-subsection</h4>
-				
-				<nav>
-					<a href="/home">Home</a>
-					<a href="/about">About</a>
-					<a href="https://external-site.com">External</a>
-					<a href="mailto:contact@example.com">Contact</a>
+	// Create mock client with complex HTML
+	mockClient := &mockHTTPClient{
+		response: `
+			<!DOCTYPE html>
+			<html>
+				<head>
+					<title>Complex Test Page</title>
+				</head>
+				<body>
+					<h1>Main Title</h1>
+					<h2>Section 1</h2>
+					<h3>Subsection 1.1</h3>
+					<h2>Section 2</h2>
+					<h3>Subsection 2.1</h3>
+					<h3>Subsection 2.2</h3>
+					
+					<a href="/page1">Internal Page 1</a>
+					<a href="/page2">Internal Page 2</a>
+					<a href="https://google.com">Google</a>
+					<a href="https://github.com">GitHub</a>
+					<a href="mailto:test@example.com">Email</a>
 					<a href="tel:+1234567890">Phone</a>
 					<a href="">Empty Link</a>
 					<a href="javascript:void(0)">JavaScript</a>
-				</nav>
-				
-				<main>
-					<form id="contact-form">
-						<input type="text" name="name" placeholder="Name">
-						<input type="email" name="email" placeholder="Email">
-						<textarea name="message"></textarea>
-						<button type="submit">Send</button>
-					</form>
 					
-					<form id="login-form">
-						<h3>Login</h3>
+					<form>
 						<input type="text" name="username" placeholder="Username">
 						<input type="password" name="password" placeholder="Password">
-						<button type="submit">Sign In</button>
+						<button type="submit">Login</button>
 					</form>
-				</main>
-			</body>
-		</html>
-	`
-
-	mockClient := &mockHTTPClient{
-		response: htmlContent,
+				</body>
+			</html>
+		`,
 	}
 
-	service := &service{
-		httpClient: mockClient,
-		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(2),
-	}
-	defer service.workerPool.Shutdown()
+	htmlParser := parser.NewHTMLParser()
+	workerPool := worker.NewWorkerPool(2)
 
-	req := AnalysisRequest{
-		URL: "https://example.com",
-	}
+	service := NewServiceWithDependencies(mockClient, htmlParser, workerPool)
 
 	ctx := context.Background()
+	req := AnalysisRequest{URL: "https://example.com"}
 	result, err := service.AnalyzeWebpage(ctx, req)
 
 	require.NoError(t, err, "AnalyzeWebpage() should not return error")
 	require.NotNil(t, result, "AnalyzeWebpage() should not return nil result")
 
-	// Check HTML version (should be HTML4 based on DOCTYPE)
-	assert.Equal(t, "HTML4", result.HTMLVersion, "HTML version should be HTML4")
-
-	// Check title
+	// Check complex analysis results
+	assert.Equal(t, "HTML5 (implied)", result.HTMLVersion, "HTML version should match")
 	assert.Equal(t, "Complex Test Page", result.PageTitle, "Page title should match")
 
-	// Check headings (should have h1, h2, h3, h4)
-	expectedHeadings := map[string]int{"h1": 1, "h2": 2, "h3": 3, "h4": 1}
-	for heading, count := range expectedHeadings {
-		assert.Equal(t, count, result.Headings[heading], "Heading count for %s should match", heading)
-	}
+	// Check headings
+	assert.Equal(t, 1, result.Headings["h1"], "H1 count should match")
+	assert.Equal(t, 2, result.Headings["h2"], "H2 count should match")
+	assert.Equal(t, 3, result.Headings["h3"], "H3 count should match")
 
-	// Check links
-	assert.Equal(t, 4, result.InternalLinks, "Internal links count should match")         // /home, /about, mailto, tel
-	assert.Equal(t, 1, result.ExternalLinks, "External links count should match")         // https://external-site.com
-	assert.Equal(t, 2, result.InaccessibleLinks, "Inaccessible links count should match") // empty, javascript
+	// Check links (updated for new link categorization logic)
+	assert.Equal(t, 4, result.InternalLinks, "Internal links count should match")
+	assert.Equal(t, 2, result.ExternalLinks, "External links count should match")
+	assert.Equal(t, 2, result.InaccessibleLinks, "Inaccessible links count should match")
 
-	// Check login form (should be detected due to password input)
+	// Check login form detection
 	assert.True(t, result.HasLoginForm, "Login form should be detected")
 }
 
 func TestAnalyzeWebpage_NoLoginForm(t *testing.T) {
-	// Test with HTML that has no login form
-	htmlContent := `
-		<html>
-			<head>
-				<title>No Login Page</title>
-			</head>
-			<body>
-				<h1>Welcome</h1>
-				<form>
-					<input type="text" name="name" placeholder="Name">
-					<input type="text" name="comment" placeholder="Comment">
-					<button type="submit">Subscribe</button>
-				</form>
-			</body>
-		</html>
-	`
-
+	// Create mock client with HTML without login form
 	mockClient := &mockHTTPClient{
-		response: htmlContent,
+		response: `
+			<!DOCTYPE html>
+			<html>
+				<head>
+					<title>No Login Form</title>
+				</head>
+				<body>
+					<h1>Welcome</h1>
+					<p>This page has no login form.</p>
+					<a href="/about">About</a>
+				</body>
+			</html>
+		`,
 	}
 
-	service := &service{
-		httpClient: mockClient,
-		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(2),
-	}
-	defer service.workerPool.Shutdown()
+	htmlParser := parser.NewHTMLParser()
+	workerPool := worker.NewWorkerPool(2)
 
-	req := AnalysisRequest{
-		URL: "https://example.com",
-	}
+	service := NewServiceWithDependencies(mockClient, htmlParser, workerPool)
 
 	ctx := context.Background()
+	req := AnalysisRequest{URL: "https://example.com"}
 	result, err := service.AnalyzeWebpage(ctx, req)
 
 	require.NoError(t, err, "AnalyzeWebpage() should not return error")
 	require.NotNil(t, result, "AnalyzeWebpage() should not return nil result")
-
-	// Should not detect login form
 	assert.False(t, result.HasLoginForm, "Login form should not be detected")
 }

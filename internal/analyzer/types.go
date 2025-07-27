@@ -45,26 +45,3 @@ type Service interface {
 	AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*WebpageAnalysis, error)
 	GetAnalysisStatus(ctx context.Context) (string, error)
 }
-
-// HTMLParser defines the interface for HTML parsing operations.
-type HTMLParser interface {
-	ExtractHTMLVersion(doc interface{}) string
-	ExtractPageTitle(doc interface{}) string
-	ExtractHeadings(doc interface{}) map[string]int
-	ExtractLinks(doc interface{}, baseURL string) (internal, external, inaccessible int)
-	ExtractLoginForm(doc interface{}) bool
-}
-
-// HTTPClient defines the interface for HTTP operations.
-type HTTPClient interface {
-	FetchWebpage(ctx context.Context, url string) ([]byte, int, error)
-	ParseHTML(content []byte) (interface{}, error)
-}
-
-// WorkerPoolManager defines the interface for worker pool operations.
-type WorkerPoolManager interface {
-	Submit(task Task)
-	SubmitAndWait(task Task) error
-	Wait()
-	Shutdown()
-}

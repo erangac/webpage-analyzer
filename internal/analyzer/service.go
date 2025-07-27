@@ -5,26 +5,30 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"webpage-analyzer/internal/client"
+	"webpage-analyzer/internal/parser"
+	"webpage-analyzer/internal/worker"
 )
 
 // service implements the Service interface.
 type service struct {
-	httpClient HTTPClient
-	htmlParser HTMLParser
-	workerPool *WorkerPool
+	httpClient client.HTTPClient
+	htmlParser parser.HTMLParser
+	workerPool *worker.WorkerPool
 }
 
 // NewService creates a new instance of the webpage analyzer service.
 func NewService() Service {
 	return &service{
-		httpClient: NewHTTPClient(),
-		htmlParser: NewHTMLParser(),
-		workerPool: NewWorkerPool(5), // 5 workers for analysis tasks.
+		httpClient: client.NewHTTPClient(),
+		htmlParser: parser.NewHTMLParser(),
+		workerPool: worker.NewWorkerPool(5), // 5 workers for analysis tasks.
 	}
 }
 
 // NewServiceWithDependencies creates a service with custom dependencies (useful for testing).
-func NewServiceWithDependencies(httpClient HTTPClient, htmlParser HTMLParser, workerPool *WorkerPool) Service {
+func NewServiceWithDependencies(httpClient client.HTTPClient, htmlParser parser.HTMLParser, workerPool *worker.WorkerPool) Service {
 	return &service{
 		httpClient: httpClient,
 		htmlParser: htmlParser,
@@ -76,7 +80,7 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 	}
 
 	// Use worker pool for parallel analysis.
-	taskGroup := NewAnalysisTaskGroup(s.workerPool)
+	taskGroup := worker.NewAnalysisTaskGroup(s.workerPool)
 
 	// Add analysis tasks to the group.
 	taskGroup.AddTask("html_version", func() (interface{}, error) {

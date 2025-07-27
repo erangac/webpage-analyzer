@@ -1,4 +1,4 @@
-package analyzer
+package worker
 
 import (
 	"sync"

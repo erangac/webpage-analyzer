@@ -1,17 +1,10 @@
-package analyzer
+package worker
 
 import (
 	"context"
 	"log/slog"
 	"sync"
 )
-
-// TaskFunc represents a unit of work to be executed by a worker.
-// It should return an error if the task fails, or nil if successful.
-type TaskFunc func() error
-
-// Task represents a unit of work to be executed.
-type Task = TaskFunc
 
 // WorkerPool manages a pool of workers for concurrent task execution.
 type WorkerPool struct {
@@ -20,20 +13,6 @@ type WorkerPool struct {
 	wg        sync.WaitGroup
 	ctx       context.Context
 	cancel    context.CancelFunc
-}
-
-// AnalysisTask represents a specific analysis task with result.
-type AnalysisTask struct {
-	Name   string
-	Task   func() (interface{}, error)
-	Result interface{}
-	Error  error
-}
-
-// AnalysisTaskGroup manages a group of related analysis tasks.
-type AnalysisTaskGroup struct {
-	tasks []*AnalysisTask
-	pool  *WorkerPool
 }
 
 // NewWorkerPool creates a new worker pool with the specified number of workers.
