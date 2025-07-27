@@ -1,6 +1,6 @@
 # Webpage Analyzer
 
-A Go-based tool that digs into web pages and pulls out useful information like HTML structure, links, and whether there are login forms. It's built to handle real-world websites efficiently and give you insights that matter.
+A Go-based tool that digs into web pages and pulls out useful information like HTML structure, links, and whether there are login forms. 
 
 ## What This Tool Does
 
@@ -10,8 +10,6 @@ Think of it as a smart web inspector that can tell you:
 - How many links point to the same site vs external sites
 - Whether there's a login form on the page
 - How long the analysis took
-
-It's particularly useful for web developers, SEO specialists, or anyone who needs to understand a website's structure quickly.
 
 ## Key Features
 
@@ -32,11 +30,10 @@ The tool uses a sophisticated approach to categorize links:
 - Relative URLs like `/about`, `/contact`
 - Absolute URLs pointing to the same domain (e.g., `https://example.com/page` on example.com)
 - Protocol-relative URLs like `//example.com/cdn` (inherits the current page's protocol)
-- Special protocols like `mailto:` and `tel:` (treated as internal)
 
 **External Links** (different websites):
 - URLs pointing to different domains
-- Special protocols like `ftp://`
+- Special protocols like `mailto:`, `tel:`, and `ftp://`
 
 **Inaccessible Links** (broken or problematic):
 - Empty href attributes (`href=""`)
@@ -89,9 +86,9 @@ This makes it much faster for large pages - instead of checking things one by on
 
 ## Getting Started
 
-### Quick Start with Docker
+### 🐳 Using Docker (Recommended)
 
-The easiest way to get running:
+**Docker is the easiest and most reliable way to run this tool.** It handles all dependencies and ensures consistent behavior across different environments.
 
 ```bash
 # Build the Docker image (this also runs all tests)
@@ -117,11 +114,27 @@ go run cmd/webpage-analyzer/main.go
 
 The server will start on port 8080 by default.
 
+> **💡 Pro tip**: If you're just trying out the tool, stick with Docker. It's faster to get started and you won't need to install Go or manage dependencies.
+
 ## Using the API
+
+### Quick Test
+
+If you're running with Docker, you can test it right away:
+
+```bash
+# Test the health endpoint
+curl http://localhost:8990/api/health
+
+# Analyze a webpage
+curl -X POST http://localhost:8990/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
 
 ### Basic Usage
 
-Analyze a webpage with a simple POST request:
+For more detailed analysis, use a POST request:
 
 ```bash
 curl -X POST http://localhost:8990/api/analyze \
@@ -221,66 +234,3 @@ go test ./...
 
 Once the server is running, visit `http://localhost:8990/docs` for interactive API documentation. You can test endpoints directly from your browser.
 
-## Recent Improvements
-
-### Link Analysis Enhancements
-- **Robust URL parsing**: Uses Go's `net/url` package for reliable domain comparison
-- **Protocol-relative support**: Correctly handles URLs starting with `//`
-- **Special protocol handling**: Properly categorizes `mailto:`, `tel:`, and `ftp://` links
-- **Internationalized domains**: Handles non-ASCII domain names correctly
-
-### Login Form Detection Improvements
-- **Multi-layered approach**: Requires password field + additional indicators
-- **Modern pattern support**: Detects contemporary login forms without obvious keywords
-- **Reduced false positives**: Contact forms with username fields are no longer misidentified
-- **Context-aware**: Looks at surrounding text and form attributes
-
-### Architecture Refinements
-- **Package reorganization**: Separated concerns into focused packages
-- **Better testability**: Each component can be tested independently
-- **Cleaner interfaces**: Well-defined contracts between packages
-- **Improved maintainability**: Smaller, focused files that are easier to understand
-
-## Performance Characteristics
-
-- **Parallel processing**: 5 concurrent tasks for faster analysis
-- **Efficient memory usage**: Streams large responses without loading everything into memory
-- **Timeout handling**: 30-second timeout prevents hanging on slow sites
-- **Connection pooling**: Reuses HTTP connections for better performance
-
-## Troubleshooting
-
-### Common Issues
-
-**"Invalid URL format"**
-- Make sure the URL includes the protocol (http:// or https://)
-- Check for typos in the domain name
-
-**"Request timeout"**
-- The target website might be slow or down
-- Try again in a few minutes
-
-**"Failed to parse HTML"**
-- The page might not be valid HTML
-- Some sites return JSON or other formats instead of HTML
-
-### Debug Mode
-
-For development, you can see detailed logs by setting the log level:
-
-```bash
-export LOG_LEVEL=debug
-go run cmd/webpage-analyzer/main.go
-```
-
-## Contributing
-
-This project follows standard Go conventions:
-- Use `go fmt` for code formatting
-- Write tests for new features
-- Keep functions focused and small
-- Add comments for complex logic
-
-## License
-
-MIT License - feel free to use this in your own projects. 
