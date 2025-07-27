@@ -13,7 +13,7 @@ fi
 
 # Run golangci-lint
 echo "🔍 Running golangci-lint..."
-golangci-lint run --timeout=5m
+golangci-lint run --timeout=5m --skip-dirs=api --skip-files=".*docs\\.go$"
 
 # Run go vet
 echo "🔍 Running go vet..."

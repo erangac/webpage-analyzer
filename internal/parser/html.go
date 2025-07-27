@@ -14,14 +14,6 @@ const (
 	html4Keyword = "html4"
 	xhtmlKeyword = "xhtml"
 
-	// Login form keywords (more specific to reduce false positives).
-	loginKeyword    = "login"
-	signInKeyword   = "sign in"
-	usernameKeyword = "username"
-	passwordKeyword = "password"
-	emailKeyword    = "email"
-	logInKeyword    = "log in"
-
 	// Default values.
 	defaultHTMLVersion = "HTML5 (implied)"
 )
@@ -501,19 +493,6 @@ func (p *htmlParser) isSubmitButton(n *html.Node) bool {
 			if strings.EqualFold(attr.Key, "type") && strings.EqualFold(attr.Val, "submit") {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-// containsLoginKeywords checks if text contains login-related keywords.
-// This is kept for backward compatibility but is now more specific.
-func (p *htmlParser) containsLoginKeywords(text string) bool {
-	keywords := []string{loginKeyword, signInKeyword, usernameKeyword, passwordKeyword, emailKeyword, logInKeyword}
-
-	for _, keyword := range keywords {
-		if strings.Contains(strings.ToLower(text), keyword) {
-			return true
 		}
 	}
 	return false

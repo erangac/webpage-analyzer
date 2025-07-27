@@ -22,7 +22,7 @@ func TestHTTPClient_FetchWebpage_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`<!DOCTYPE html><html><head><title>Test Page</title></head><body>Hello World</body></html>`))
+		_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><title>Test Page</title></head><body>Hello World</body></html>`))
 	}))
 	defer server.Close()
 
@@ -44,7 +44,7 @@ func TestHTTPClient_FetchWebpage_404Error(t *testing.T) {
 	// Create a test server that returns 404
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Not Found"))
+		_, _ = w.Write([]byte("Not Found"))
 	}))
 	defer server.Close()
 
@@ -61,7 +61,7 @@ func TestHTTPClient_FetchWebpage_500Error(t *testing.T) {
 	// Create a test server that returns 500
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
+		_, _ = w.Write([]byte("Internal Server Error"))
 	}))
 	defer server.Close()
 
@@ -99,7 +99,7 @@ func TestHTTPClient_FetchWebpage_Timeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(50 * time.Millisecond) // Short delay
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("<html><body>Delayed Response</body></html>"))
+		_, _ = w.Write([]byte("<html><body>Delayed Response</body></html>"))
 	}))
 	defer server.Close()
 
@@ -123,7 +123,7 @@ func TestHTTPClient_FetchWebpage_NonHTMLContent(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message": "This is JSON, not HTML"}`))
+		_, _ = w.Write([]byte(`{"message": "This is JSON, not HTML"}`))
 	}))
 	defer server.Close()
 
@@ -151,7 +151,7 @@ func TestHTTPClient_FetchWebpage_LargeResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(largeHTML))
+		_, _ = w.Write([]byte(largeHTML))
 	}))
 	defer server.Close()
 
@@ -178,7 +178,7 @@ func TestHTTPClient_FetchWebpage_Redirect(t *testing.T) {
 		if r.URL.Path == "/final" {
 			w.Header().Set("Content-Type", "text/html")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`<!DOCTYPE html><html><head><title>Final Page</title></head><body>Redirected Successfully</body></html>`))
+			_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><title>Final Page</title></head><body>Redirected Successfully</body></html>`))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -203,7 +203,7 @@ func TestHTTPClient_FetchWebpage_UserAgent(t *testing.T) {
 		userAgent = r.Header.Get("User-Agent")
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`<!DOCTYPE html><html><body>Test</body></html>`))
+		_, _ = w.Write([]byte(`<!DOCTYPE html><html><body>Test</body></html>`))
 	}))
 	defer server.Close()
 
@@ -281,7 +281,7 @@ func TestHTTPClient_FetchWebpage_ContentTypeDetection(t *testing.T) {
 					w.Header().Set("Content-Type", tt.contentType)
 				}
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.body))
+				_, _ = w.Write([]byte(tt.body))
 			}))
 			defer server.Close()
 
