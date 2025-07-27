@@ -157,6 +157,17 @@ docker run -p 8990:8990 webpage-analyzer
 
 Then open your browser to `http://localhost:8990` to see the web interface.
 
+### Available URLs
+
+Once the Docker container is running, you can access:
+
+- **Web Interface**: `http://localhost:8990` - Interactive web UI for testing the analyzer
+- **API Documentation (Swagger)**: `http://localhost:8990/docs` - Interactive API documentation with Swagger UI
+- **API Endpoints**: 
+  - Health check: `http://localhost:8990/api/health`
+  - Analyze webpage: `http://localhost:8990/api/analyze`
+  - Status: `http://localhost:8990/api/status`
+
 ### Manual Setup
 
 If you prefer to run it directly:
