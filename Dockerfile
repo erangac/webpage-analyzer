@@ -5,22 +5,33 @@ FROM golang:1.22-alpine AS backend-builder
 WORKDIR /app
 
 # Install basic tools and Swaggo
-RUN apk add --no-cache git curl bash
+RUN apk add --no-cache git curl bash dos2unix
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 
 # Copy go.mod and go.sum first for better caching
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
+# Copy scripts first (since they're excluded in .dockerignore)
+COPY scripts/ ./scripts/
+
+# Copy source code (excluding unnecessary files)
 COPY . .
 
+# Ensure scripts have proper line endings and permissions
+RUN dos2unix scripts/lint.sh scripts/test.sh 2>/dev/null || true
+RUN chmod +x scripts/lint.sh scripts/test.sh
+
+# Verify both scripts exist and are executable
+RUN ls -la scripts/ && echo "Scripts found and ready"
+RUN test -f scripts/lint.sh && echo "lint.sh exists" || echo "ERROR: lint.sh not found"
+RUN test -f scripts/test.sh && echo "test.sh exists" || echo "ERROR: test.sh not found"
+RUN test -x scripts/lint.sh && echo "lint.sh is executable" || echo "ERROR: lint.sh not executable"
+RUN test -x scripts/test.sh && echo "test.sh is executable" || echo "ERROR: test.sh not executable"
+
 # Run comprehensive linting and testing (before generating Swaggo files)
-COPY scripts/lint.sh ./scripts/lint.sh
-COPY scripts/test.sh ./scripts/test.sh
-RUN chmod +x ./scripts/lint.sh ./scripts/test.sh
-RUN ./scripts/lint.sh
-RUN ./scripts/test.sh
+RUN bash scripts/lint.sh
+RUN bash scripts/test.sh
 
 # Generate OpenAPI specification using Swaggo
 RUN swag init -g cmd/webpage-analyzer/main.go -o api

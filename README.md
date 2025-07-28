@@ -151,6 +151,12 @@ This makes it much faster for large pages - instead of checking things one by on
 # Build the Docker image (runs linting and tests during build)
 docker build -t webpage-analyzer .
 
+# Clean build (no cache, fresh dependencies)
+docker build --no-cache -t webpage-analyzer .
+
+# Windows-specific: If you encounter line ending issues
+docker build --no-cache --build-arg BUILDKIT_INLINE_CACHE=1 -t webpage-analyzer .
+
 # Run it on port 8990
 docker run -p 8990:8990 webpage-analyzer
 ```

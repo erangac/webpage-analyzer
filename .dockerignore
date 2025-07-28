@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Windows specific
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build artifacts
+coverage/
+*.out
+*.test
+webpage-analyzer
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Documentation
+README.md
+*.md
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Scripts are needed for the build process 
