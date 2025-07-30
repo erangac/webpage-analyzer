@@ -47,7 +47,8 @@ func (c *httpClient) FetchWebpage(ctx context.Context, urlStr string) ([]byte, i
 	httpReq.Header.Set("User-Agent", "WebpageAnalyzer/1.0")
 	httpReq.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	httpReq.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	httpReq.Header.Set("Accept-Encoding", "gzip, deflate")
+	// Don't request compressed content to avoid decompression issues
+	httpReq.Header.Set("Accept-Encoding", "identity")
 	httpReq.Header.Set("Connection", "keep-alive")
 
 	// Fetch the webpage.
