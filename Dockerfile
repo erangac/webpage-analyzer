@@ -18,6 +18,9 @@ COPY scripts/ ./scripts/
 # Copy source code (excluding unnecessary files)
 COPY . .
 
+# Format Go code
+RUN go fmt ./...
+
 # Ensure scripts have proper line endings and permissions
 RUN dos2unix scripts/lint.sh scripts/test.sh 2>/dev/null || true
 RUN chmod +x scripts/lint.sh scripts/test.sh
