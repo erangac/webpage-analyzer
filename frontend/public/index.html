@@ -4,38 +4,164 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Webpage Analyzer</title>
-    <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
-        form { margin-bottom: 2rem; }
-        input[type="text"] { width: 80%; padding: 0.5rem; }
-        button { padding: 0.5rem 1rem; }
-        #results { background: #f9f9f9; padding: 1rem; border-radius: 4px; }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Webpage Analyzer</h1>
-    <form id="analyze-form">
-        <input type="text" id="url" placeholder="Enter webpage URL" required />
-        <button type="submit">Analyze</button>
-    </form>
-    <div id="results"></div>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Webpage Analyzer</h1>
+            <p>Analyze any webpage for HTML structure, links, and more</p>
+        </div>
+        
+        <div class="form-section">
+            <form id="analyze-form">
+                <div class="form-group">
+                    <input type="text" id="url" placeholder="Enter webpage URL (e.g., https://example.com)" required />
+                    <button type="submit" id="submit-btn">Analyze</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            Analyzing webpage...
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
     <script>
         document.getElementById('analyze-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const url = document.getElementById('url').value;
-            document.getElementById('results').textContent = 'Analyzing...';
+            const submitBtn = document.getElementById('submit-btn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Analyzing...';
+            loading.classList.add('show');
+            results.classList.remove('show');
+            
             try {
                 const res = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url })
                 });
+                
                 const data = await res.json();
-                document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+                
+                if (!res.ok) {
+                    throw new Error(data.error_message || 'Analysis failed');
+                }
+                
+                displayResults(data);
             } catch (err) {
-                document.getElementById('results').textContent = 'Error: ' + err;
+                displayError(err.message);
+            } finally {
+                // Reset form state
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Analyze';
+                loading.classList.remove('show');
             }
         });
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            
+                         const headingsHtml = Object.entries(data.headings || {})
+                 .map(([level, count]) => `
+                     <div class="heading-item">
+                         <span class="level">${level.toUpperCase()}</span>
+                         <span class="count">${count}</span>
+                     </div>
+                 `).join('');
+
+            results.innerHTML = `
+                <div class="result-card">
+                    <h3>📊 Analysis Results</h3>
+                    
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <h4>URL</h4>
+                            <div class="value">${data.url}</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>HTML Version</h4>
+                            <div class="value">${data.html_version || 'Unknown'}</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Page Title</h4>
+                            <div class="value">${data.page_title || 'No title'}</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Processing Time</h4>
+                            <div class="value">${data.processing_time || 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <h3>🔗 Link Analysis</h3>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <h4>Internal Links</h4>
+                            <div class="value">${data.internal_links || 0}</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>External Links</h4>
+                            <div class="value">${data.external_links || 0}</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Inaccessible Links</h4>
+                            <div class="value">${data.inaccessible_links || 0}</div>
+                        </div>
+                        <div class="result-item">
+                            <h4>Login Form</h4>
+                            <div class="value">
+                                ${data.has_login_form ? 
+                                    '<span class="success-badge">Found</span>' : 
+                                    '<span class="warning-badge">Not Found</span>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                                 <div class="result-card">
+                     <h3>📝 Headings Structure</h3>
+                     <div class="headings-section">
+                         <div class="headings-list">
+                             ${headingsHtml || '<p style="color: #6b7280; text-align: center;">No headings found</p>'}
+                         </div>
+                     </div>
+                 </div>
+
+                <div class="result-card">
+                    <h3>📅 Analysis Details</h3>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <h4>Analyzed At</h4>
+                            <div class="value">${new Date(data.analyzed_at).toLocaleString()}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            results.classList.add('show');
+        }
+
+        function displayError(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+            results.classList.add('show');
+        }
     </script>
 </body>
 </html> 
