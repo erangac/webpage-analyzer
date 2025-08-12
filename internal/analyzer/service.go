@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"webpage-analyzer/internal/cache"
 	"webpage-analyzer/internal/client"
 	"webpage-analyzer/internal/parser"
 	"webpage-analyzer/internal/worker"
@@ -17,14 +18,17 @@ type service struct {
 	httpClient client.HTTPClient
 	htmlParser parser.HTMLParser
 	workerPool *worker.WorkerPool
+	cache      *cache.LocalCache[string, *WebpageAnalysis]
 }
 
 // NewService creates a new instance of the webpage analyzer service.
-func NewService() Service {
+// allow to pass in a cache interface
+func NewService(cache *cache.LocalCache[string, *WebpageAnalysis]) Service {
 	return &service{
 		httpClient: client.NewHTTPClient(),
 		htmlParser: parser.NewHTMLParser(),
 		workerPool: worker.NewWorkerPool(5), // 5 workers for analysis tasks.
+		cache:      cache,
 	}
 }
 
@@ -41,6 +45,12 @@ func NewServiceWithDependencies(httpClient client.HTTPClient, htmlParser parser.
 func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*WebpageAnalysis, error) {
 	startTime := time.Now()
 	slog.Info("Starting webpage analysis", "url", req.URL)
+
+	// Check if the url is already in the cache.
+	if cached, ok := s.cache.Get(req.URL); ok {
+		slog.Info("Returning cached analysis", "url", req.URL)
+		return cached, nil
+	}
 
 	// Fetch the webpage.
 	slog.Info("Fetching webpage content", "url", req.URL)
@@ -181,6 +191,10 @@ func (s *service) AnalyzeWebpage(ctx context.Context, req AnalysisRequest) (*Web
 	// Calculate processing time.
 	analysis.ProcessingTime = time.Since(startTime).String()
 	slog.Info("Analysis completed", "url", req.URL, "processing_time", analysis.ProcessingTime)
+
+	// Save the analysis to the cache.
+	slog.Info("Saving analysis to cache", "url", req.URL, "analysis", analysis)
+	s.cache.Set(req.URL, analysis)
 
 	return analysis, nil
 }
