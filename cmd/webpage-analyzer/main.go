@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"webpage-analyzer/internal/analyzer"
+	"webpage-analyzer/internal/cache"
 	httphandler "webpage-analyzer/internal/http"
 )
 
@@ -56,8 +57,11 @@ func setupServer(port string) *http.Server {
 	}))
 	slog.SetDefault(logger)
 
+	// Initialize cache.
+	cache := cache.NewLocalCache[string, *analyzer.WebpageAnalysis]()
+
 	// Initialize services.
-	analyzerService := analyzer.NewService()
+	analyzerService := analyzer.NewService(cache)
 
 	// Initialize handlers.
 	handler := httphandler.NewHandler(analyzerService)

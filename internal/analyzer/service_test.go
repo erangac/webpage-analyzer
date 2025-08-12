@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
 
+	"webpage-analyzer/internal/cache"
 	"webpage-analyzer/internal/parser"
 	"webpage-analyzer/internal/worker"
 )
@@ -43,7 +44,8 @@ func (m *mockHTTPClient) ParseHTML(content []byte) (interface{}, error) {
 }
 
 func TestNewAnalyzerService(t *testing.T) {
-	service := NewService()
+	cache := cache.NewLocalCache[string, *WebpageAnalysis]()
+	service := NewService(cache)
 	require.NotNil(t, service, "NewService() should not return nil")
 }
 
@@ -151,7 +153,8 @@ func TestAnalyzeWebpage_EmptyURL(t *testing.T) {
 }
 
 func TestGetAnalysisStatus(t *testing.T) {
-	service := NewService()
+	cache := cache.NewLocalCache[string, *WebpageAnalysis]()
+	service := NewService(cache)
 	ctx := context.Background()
 
 	status, err := service.GetAnalysisStatus(ctx)
